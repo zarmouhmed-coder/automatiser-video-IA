@@ -20,6 +20,7 @@ def startup(start_worker: bool = True) -> None:
     config.ensure_dirs()
     applied = db.migrate()
     seeded = seed.seed()
+    seed.ensure_voice_genders()
     if applied:
         log("db.migrate", f"Migrations appliquées : {', '.join(applied)}")
     today = datetime.now().strftime("%Y%m%d")
@@ -50,7 +51,7 @@ async def studio_error(_: Request, exc: StudioError):
 
 
 config.ensure_dirs()
-for sub in ("media", "exports", "library"):
+for sub in ("media", "exports", "library", "inspirations"):
     (config.DATA_DIR / sub).mkdir(parents=True, exist_ok=True)
     app.mount(f"/files/{sub}", StaticFiles(directory=config.DATA_DIR / sub), name=f"files-{sub}")
 

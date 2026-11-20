@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, fileUrl, fmtBytes, fmtDate, SERIES_COLORS } from "../api";
 import { Empty, PageHead, Status, useAction, usePoll } from "../ui";
 import { EpisodeList, GateBar, JobsPanel, useSelectedEpisode } from "./common";
@@ -52,7 +53,8 @@ export default function Production() {
   const busy = d?.jobs.some((j: any) => ["queued", "running"].includes(j.status));
   const scriptApproved = d?.gates.some((g: any) => g.stage === "script" && g.status === "approved");
   const preview = d?.renders.find((r: any) => r.kind === "preview");
-  const final = d?.renders.find((r: any) => r.kind === "final");
+  const finals = ["fr", "en"].map((l) => d?.renders.find((r: any) => r.kind === "final" && (r.lang || "fr") === l)).filter(Boolean);
+  const episodeGate = d?.gates.find((g: any) => g.status === "pending" && g.stage === "episode");
 
   return (
     <div className="stack">
@@ -70,6 +72,12 @@ export default function Production() {
                 <p className="small muted">Étape : {d.episode.stage_label}</p>
                 <JobsPanel detail={d} reload={reload} />
               </div>
+              {episodeGate && (
+                <div className="panel" style={{ ["--accent" as any]: "var(--amber)", borderColor: "rgba(255,176,0,.45)" }}>
+                  <div className="row between"><b style={{ color: "var(--amber)" }}>L'épisode est prêt : une seule validation vous attend.</b>
+                    <Link to="/validations"><button className="primary">Voir et valider →</button></Link></div>
+                </div>
+              )}
               <GateBar detail={d} stage="storyboard" reload={reload} />
               <GateBar detail={d} stage="preview" reload={reload} />
               <GateBar detail={d} stage="final" reload={reload} />
@@ -96,7 +104,9 @@ export default function Production() {
               ))}
               {tab === "video" && (
                 <div className="grid g2">
-                  {[["Prévisualisation (basse définition)", preview], ["Rendu final", final]].map(([label, r]: any) => (
+                  {[...(preview ? [["Prévisualisation (basse définition)", preview]] : []),
+                    ...finals.map((f: any) => [`Rendu final — ${f.lang === "en" ? "anglais" : "français"}`, f]),
+                    ...(!preview && !finals.length ? [["Rendu", null]] : [])].map(([label, r]: any) => (
                     <div key={label} className="panel">
                       <h2>{label}</h2>
                       {r ? (
@@ -118,13 +128,17 @@ export default function Production() {
                   <h2>Voix et ressources de l'épisode</h2>
                   <p className="small">Fournisseur de voix : <b>{d.assets_manifest.tts_provider || "—"}</b> — {d.assets_manifest.voice_status || "pas encore préparé"}</p>
                   {(d.assets_manifest.warnings || []).map((w: string, i: number) => <div key={i} className="lock small">⚠ {w}</div>)}
-                  <table><thead><tr><th>Plan</th><th>Voix</th><th>Durée</th><th>Ajustement</th></tr></thead><tbody>
-                    {Object.entries(d.assets_manifest.voices || {}).map(([k, v]: any) => (
-                      <tr key={k}><td>{k}</td><td><audio controls src={fileUrl(v.rel)} /></td>
-                        <td>{v.duration}s</td><td>{d.assets_manifest.adjusted_durations?.[k] ? `${d.assets_manifest.adjusted_durations[k]}s` : "—"}</td></tr>
-                    ))}
-                  </tbody></table>
-                  {!Object.keys(d.assets_manifest.voices || {}).length && <p className="small muted">Aucune voix générée : les dialogues sont portés par les sous-titres, l'animation des bouches et le sound design.</p>}
+                  {Object.entries(d.assets_manifest.langs || {}).map(([lang, m]: any) => (
+                    <div key={lang} style={{ marginTop: 10 }}>
+                      <h3>{lang === "fr" ? "Français" : "Anglais"} — {m.voice_status}</h3>
+                      {(m.warnings || []).map((w: string, i: number) => <div key={i} className="lock tiny">⚠ {w}</div>)}
+                      <table><thead><tr><th>Plan</th><th>Personnage</th><th>Voix</th><th>Durée</th></tr></thead><tbody>
+                        {Object.entries(m.voices || {}).map(([k, v]: any) => (
+                          <tr key={k}><td>{k}</td><td className="small">{v.speaker}</td><td><audio controls preload="none" src={fileUrl(v.rel)} /></td><td>{v.duration}s</td></tr>
+                        ))}
+                      </tbody></table>
+                    </div>
+                  ))}
                   <p className="tiny muted">Personnages, décors, musiques et effets sont produits par le moteur 2D/2.5D local ou pris dans la Bibliothèque (éléments importés prioritaires).</p>
                 </div>
               )}

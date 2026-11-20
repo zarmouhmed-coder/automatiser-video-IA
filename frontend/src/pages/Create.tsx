@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { PageHead, SeriesPill, useAction, usePoll } from "../ui";
 
@@ -16,13 +16,17 @@ export default function Create() {
   const [duration, setDuration] = useState(45);
   const [style, setStyle] = useState("");
   const [vote, setVote] = useState(1);
+  const [inspId, setInspId] = useState<number | "">("");
+  const [inspUrl, setInspUrl] = useState("");
+  const { data: insps } = usePoll<any[]>(`/api/inspirations?series_id=${series}`, 0);
   const { run, busy } = useAction();
   const nav = useNavigate();
   const lock = dash?.series.find((s: any) => s.id === series)?.lock;
 
   const submit = async () => {
     const ep = await run(
-      () => api.post("/api/episodes", { series_id: series, intent, duration_s: duration, style, allow_vote: vote }),
+      () => api.post("/api/episodes", { series_id: series, intent, duration_s: duration, style, allow_vote: vote,
+        inspiration_id: inspId || null, inspiration_url: inspId ? "" : inspUrl }),
       "Épisode créé : l'agent scénariste démarre",
     );
     if (ep) nav(`/scenarios?ep=${(ep as any).id}`);
@@ -71,6 +75,17 @@ export default function Create() {
               <input value={style} onChange={(e) => setStyle(e.target.value)} placeholder="ex. lent, oppressant" />
             </div>
           </div>
+          <div className="field">
+            <label>Inspiration de style (rythme, animations, couleurs) — facultatif</label>
+            <div className="row">
+              <select value={inspId} onChange={(e) => setInspId(e.target.value ? +e.target.value : "")} style={{ flex: 1, minWidth: 180 }}>
+                <option value="">— aucune / nouveau lien —</option>
+                {(insps || []).filter((i) => i.status !== "error").map((i) => <option key={i.id} value={i.id}>{i.title || i.url} ({i.profile?.description?.slice(0, 50)})</option>)}
+              </select>
+            </div>
+            {!inspId && <input style={{ marginTop: 6 }} placeholder="…ou collez un lien TikTok d'inspiration" value={inspUrl} onChange={(e) => setInspUrl(e.target.value)} />}
+            <div className="tiny muted" style={{ marginTop: 4 }}>Pour le rythme exact, importez la vidéo dans <Link to="/inspirations">Inspirations</Link>.</div>
+          </div>
           <button className="primary" disabled={busy || intent.trim().length < 5 || lock?.locked} onClick={submit}>
             ▶ Lancer l'écriture
           </button>
@@ -80,11 +95,10 @@ export default function Create() {
           <ol className="small" style={{ paddingLeft: 18 }}>
             <li>L'agent scénariste <SeriesPill id={series} /> écrit le script (scènes, plans, dialogues).</li>
             <li>Le directeur/critique relève dialogues plats, incohérences, rythme, répétitions, tension.</li>
-            <li><b>Vous validez</b> le scénario (ou demandez une modification, scène par scène).</li>
-            <li>Storyboard avec vignettes réelles → <b>votre validation</b>.</li>
-            <li>Personnages, décors, voix, effets → prévisualisation basse définition → <b>votre validation</b>.</li>
-            <li>Rendu final 1080×1920 H.264/AAC → <b>votre validation</b>.</li>
-            <li>Pack de publication manuelle (rien n'est publié automatiquement).</li>
+            <li>Traduction anglaise, storyboard, voix FR et EN de chaque personnage, effets et musique.</li>
+            <li>Rendu des deux vidéos 1080×1920 (français et anglais), avec le style de l'inspiration choisie.</li>
+            <li><b>Une seule validation</b> : vous regardez les vidéos et lisez l'explication de chaque scène, puis validez, demandez une modification ou rejetez.</li>
+            <li>Packs de publication FR et EN (rien n'est publié automatiquement).</li>
           </ol>
           <p className="small muted">
             Si l'épisode précédent de cette série se termine sur un vote, la création reste bloquée tant que vous n'avez

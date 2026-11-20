@@ -122,14 +122,13 @@ export function Status({ s }: { s: string }) {
   return <span className={`pill ${cls}`}>{label}</span>;
 }
 
-export function StageBar({ stage, accent }: { stage: string; accent?: string }) {
-  const order = ["script", "critique", "validation_script", "storyboard", "validation_storyboard", "assets", "preview",
-    "validation_preview", "final", "validation_final", "publication", "ready", "published"];
-  const idx = order.indexOf(stage);
+export function StageBar({ ep, accent }: { ep: { stage_index?: number; stage_total?: number; stage?: string }; accent?: string }) {
+  const total = ep.stage_total || 1;
+  const idx = ep.stage_index ?? 0;
   return (
-    <div className="stages" style={{ ["--accent" as any]: accent }} title={stage}>
-      {order.map((s, i) => (
-        <i key={s} className={i < idx ? "done" : i === idx ? "now" : ""} />
+    <div className="stages" style={{ ["--accent" as any]: accent }} title={ep.stage}>
+      {Array.from({ length: total }, (_, i) => (
+        <i key={i} className={i < idx ? "done" : i === idx ? "now" : ""} />
       ))}
     </div>
   );

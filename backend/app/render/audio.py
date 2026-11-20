@@ -217,16 +217,24 @@ def ambience(series_id: str, dur: float, seed: int = 0) -> np.ndarray:
 
 def tts_status() -> dict:
     from ..core import get_settings
+    from . import voices
 
     prov = get_settings()["tts_provider"]
     espeak = shutil.which("espeak-ng") or shutil.which("espeak")
+    pst = voices.status()
     return {
         "active": prov,
-        "none": {"ready": True, "label": "Aucune voix (sous-titres + sound design)"},
+        "piper": {"ready": pst["ready"], "label": "Piper — voix neuronales FR/EN (gratuit, hors ligne)",
+                  "note": None if pst["ready"] else (
+                      "Les voix seront téléchargées automatiquement au premier épisode (≈ 500 Mo), "
+                      "ou via le bouton « Télécharger les voix »." if pst["library"]
+                      else "Configuration requise : paquet piper-tts non installé.")},
         "espeak": {"ready": bool(espeak), "label": "espeak-ng (local, gratuit, voix robotique)",
-                   "note": None if espeak else "Configuration requise : installez espeak-ng."},
+                   "note": None if espeak else "Configuration requise : sudo apt install espeak-ng"},
         "elevenlabs": {"ready": bool(os.environ.get("ELEVENLABS_API_KEY")), "label": "ElevenLabs (payant, clé API)",
                        "note": "Renseignez un voice_id par personnage dans la bible."},
+        "none": {"ready": True, "label": "Aucune voix (sous-titres seuls)"},
+        "piper_models": pst,
     }
 
 
@@ -259,19 +267,23 @@ def write_wav(path: Path, x: np.ndarray) -> None:
         w.writeframes(pcm.tobytes())
 
 
-def synthesize_voice(text: str, character: dict, out: Path, provider: str) -> Path | None:
+def synthesize_voice(text: str, character: dict, out: Path, provider: str, lang: str = "fr") -> Path | None:
     """Produit un WAV pour une réplique. Renvoie None si aucune voix n'est configurée."""
     if provider == "none" or not text.strip():
         return None
     out.parent.mkdir(parents=True, exist_ok=True)
     pitch = float(character.get("voice", {}).get("pitch", 1.0))
+    if provider == "piper":
+        from . import voices
+
+        return voices.synthesize(text, character, lang, out)
     if provider == "espeak":
         exe = shutil.which("espeak-ng") or shutil.which("espeak")
         if not exe:
             from ..core import ConfigRequired
             raise ConfigRequired("Configuration requise : espeak-ng n'est pas installé.")
         p = int(max(0, min(99, 50 * pitch)))
-        subprocess.run([exe, "-v", "fr", "-s", "160", "-p", str(p), "-w", str(out), text],
+        subprocess.run([exe, "-v", "fr" if lang == "fr" else "en-us", "-s", "160", "-p", str(p), "-w", str(out), text],
                        check=True, capture_output=True, timeout=60)
         return out
     if provider == "elevenlabs":

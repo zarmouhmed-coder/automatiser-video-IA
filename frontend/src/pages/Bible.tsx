@@ -6,6 +6,7 @@ export default function Bible() {
   const [sid, setSid] = useState("horror");
   const { data: b, reload } = usePoll<any>(`/api/series/${sid}/bible`, 0);
   const { data: agents } = usePoll<any[]>("/api/agents", 0);
+  const { data: voices } = usePoll<any>("/api/voices", 0);
   const { data: sheets } = usePoll<any[]>(`/api/library?kind=expression&series_id=${sid}`, 0);
   const [fact, setFact] = useState("");
   const [tab, setTab] = useState("monde");
@@ -67,6 +68,17 @@ export default function Bible() {
                     <p className="small muted">{c.personality}</p>
                     {Object.keys(c.stats || {}).length > 0 && <p className="tiny mono">{JSON.stringify(c.stats)}</p>}
                     {b.relations.filter((r: any) => r.a_id === c.id || r.b_id === c.id).map((r: any) => <div key={r.id} className="tiny muted">↔ {r.a_id === c.id ? r.b_id : r.a_id} : {r.kind}</div>)}
+                    <div className="row" style={{ marginTop: 8 }}>
+                      <span className="tiny muted">Voix :</span>
+                      <select style={{ width: "auto" }} value={c.voice?.gender || "M"} onChange={(e) => run(() => api.patch(`/api/characters/${c.id}`, { voice: { ...c.voice, gender: e.target.value } }), "Voix mise à jour (prochains rendus)").then(reload)}>
+                        <option value="F">féminine</option><option value="M">masculine</option>
+                      </select>
+                      <span className="tiny muted">hauteur</span>
+                      <select style={{ width: "auto" }} value={String(c.voice?.pitch ?? 1)} onChange={(e) => run(() => api.patch(`/api/characters/${c.id}`, { voice: { ...c.voice, pitch: +e.target.value } }), "Voix mise à jour").then(reload)}>
+                        {[0.7, 0.8, 0.85, 0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.2].map((x) => <option key={x} value={String(x)}>{x}</option>)}
+                      </select>
+                      {voices?.cast?.[sid]?.find((v: any) => v.id === c.id) && <span className="tiny mono muted">{voices.cast[sid].find((v: any) => v.id === c.id).fr}</span>}
+                    </div>
                     {sheet && <img src={fileUrl(sheet.path)} alt={`Expressions de ${c.name}`} style={{ width: "100%", borderRadius: 8, marginTop: 8 }} loading="lazy" />}
                     {c.status === "proposed" && <div className="row" style={{ marginTop: 8 }}>
                       <button className="sm primary" onClick={() => run(() => api.patch(`/api/characters/${c.id}`, { status: "canon" }), "Ajouté au canon").then(reload)}>Rendre canon</button>

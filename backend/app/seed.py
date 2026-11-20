@@ -243,6 +243,23 @@ SERIES = [
 ]
 
 
+GENDERS = {"hor.lea": "F", "hor.samir": "M", "hor.odile": "F", "hor.locataire": "M", "fb.noa": "M", "fb.yuna": "F",
+           "fb.marco": "M", "fb.brandt": "M", "fb.kaito": "M", "isk.elio": "M", "isk.sylwen": "F", "isk.grukk": "M",
+           "isk.mira": "F", "isk.heraut": "M"}
+
+
+def ensure_voice_genders() -> None:
+    """Complète le genre de voix des personnages d'origine (sans toucher aux réglages existants)."""
+    for cid, g in GENDERS.items():
+        r = db.row("SELECT voice FROM characters WHERE id=?", (cid,))
+        if not r:
+            continue
+        v = db.jloads(r["voice"], {})
+        if "gender" not in v:
+            v["gender"] = g
+            db.execute("UPDATE characters SET voice=? WHERE id=?", (db.jdumps(v), cid))
+
+
 def seed() -> bool:
     """Crée les séries si la base est vide. Retourne True si un seed a eu lieu."""
     if db.row("SELECT id FROM series LIMIT 1"):

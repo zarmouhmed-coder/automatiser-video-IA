@@ -33,7 +33,7 @@ export function EpisodeList({ selected, onSelect }: { selected: number | null; o
             <Status s={e.status} />
           </div>
           <div className="small" style={{ marginTop: 4 }}>{e.title || <span className="muted">{e.intent.slice(0, 60)}</span>}</div>
-          <StageBar stage={e.stage} accent={SERIES_COLORS[e.series_id]} />
+          <StageBar ep={e} accent={SERIES_COLORS[e.series_id]} />
           <div className="tiny muted">{e.stage_label}</div>
         </div>
       ))}

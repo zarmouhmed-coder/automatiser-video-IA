@@ -27,13 +27,30 @@ STAGE_LABELS = {
     "validation_preview": "Validation de la prévisualisation",
     "final": "Rendu final",
     "validation_final": "Validation du rendu final",
+    "validation_episode": "Validation de l'épisode (une seule, tout expliqué)",
     "publication": "Pack de publication",
     "ready": "Prêt à publier (manuellement)",
     "published": "Publié",
     "rejected": "Rejeté",
 }
 STAGE_ORDER = list(STAGE_LABELS)
-GATE_STAGES = ["script", "storyboard", "preview", "final"]
+GATE_STAGES = ["script", "storyboard", "preview", "final", "episode"]
+STAGES_BY_MODE = {
+    "detailed": ["script", "critique", "validation_script", "storyboard", "validation_storyboard", "assets", "preview",
+                 "validation_preview", "final", "validation_final", "publication", "ready", "published"],
+    "episode": ["script", "critique", "storyboard", "assets", "final", "validation_episode", "publication", "ready",
+                "published"],
+}
+
+
+def stage_progress(ep: dict) -> dict[str, Any]:
+    order = STAGES_BY_MODE.get(ep.get("validation_mode") or "detailed", STAGES_BY_MODE["detailed"])
+    idx = order.index(ep["stage"]) if ep["stage"] in order else 0
+    return {"stage_index": idx, "stage_total": len(order), "stage_label": STAGE_LABELS.get(ep["stage"], ep["stage"])}
+
+
+def is_episode_mode(ep: dict) -> bool:
+    return (ep.get("validation_mode") or "detailed") == "episode"
 NARRATIVE_JOBS = {"script", "scene_regen", "critique", "storyboard"}
 HEAVY_JOBS = {"preview", "final"}
 
@@ -107,11 +124,12 @@ def vote_lock_status(series_id: str, before_number: int | None = None) -> dict[s
     prev = db.row(sql + " ORDER BY number DESC LIMIT 1", params)
     if not prev:
         return {"locked": False}
-    approved_script = db.row("SELECT id FROM gates WHERE episode_id=? AND stage='script' AND status='approved'",
+    approved_script = db.row("SELECT id FROM gates WHERE episode_id=? AND stage IN ('script','episode')"
+                             " AND status='approved'",
                              (prev["id"],))
     if not approved_script:
         return {"locked": True, "episode_id": prev["id"], "reason":
-                f"L'épisode {prev['number']} n'a pas encore de scénario validé : on ne sait pas s'il se termine "
+                f"L'épisode {prev['number']} n'est pas encore validé : on ne sait pas s'il se termine "
                 "sur un vote. Validez-le (ou rejetez-le) avant d'écrire le suivant."}
     if prev["ends_with_vote"]:
         vote = db.row("SELECT * FROM votes WHERE episode_id=? ORDER BY id DESC LIMIT 1", (prev["id"],))
@@ -133,7 +151,7 @@ def assert_unlocked(ep: dict) -> None:
 # ----------------------------------------------------------------------- création
 
 def create_episode(series_id: str, intent: str, duration_s: int = 45, style: str = "",
-                   allow_vote: int = 1) -> dict[str, Any]:
+                   allow_vote: int = 1, inspiration_id: int | None = None) -> dict[str, Any]:
     bible.get_series(series_id)
     intent = (intent or "").strip()
     if len(intent) < 5:
@@ -147,14 +165,17 @@ def create_episode(series_id: str, intent: str, duration_s: int = 45, style: str
         raise LockedError(st["reason"], code="vote_lock")
     from ..core import get_setting
 
+    if inspiration_id and not db.row("SELECT id FROM inspirations WHERE id=?", (inspiration_id,)):
+        raise StudioError("Inspiration introuvable.")
+    mode = get_setting("validation_mode") if get_setting("validation_mode") in ("episode", "detailed") else "episode"
     with db.transaction() as c:
         n = c.execute("SELECT COALESCE(MAX(number),0)+1 FROM episodes WHERE series_id=?", (series_id,)).fetchone()[0]
         ts = db.now()
         eid = c.execute(
             "INSERT INTO episodes(series_id, number, intent, duration_s, style, allow_vote, stage, status, provider,"
-            " created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            " validation_mode, inspiration_id, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (series_id, n, intent, duration_s, style, int(allow_vote), "script", "in_progress",
-             get_setting("llm_provider"), ts, ts)).lastrowid
+             get_setting("llm_provider"), mode, inspiration_id or None, ts, ts)).lastrowid
     ep = get_episode(eid)
     log("episode.created", f"Épisode {n} créé : {intent[:80]}", series_id=series_id, episode_id=eid)
     enqueue("script", ep)
@@ -163,11 +184,11 @@ def create_episode(series_id: str, intent: str, duration_s: int = 45, style: str
 
 # ------------------------------------------------------------------------ gates
 
-def _open_gate(ep: dict, stage: str, ref_id: int) -> int:
+def _open_gate(ep: dict, stage: str, ref_id: int, report: dict | None = None) -> int:
     db.execute("UPDATE gates SET status='superseded', decided_at=? WHERE episode_id=? AND status='pending'",
                (db.now(), ep["id"]))
-    gid = db.execute("INSERT INTO gates(episode_id, stage, ref_id, status, created_at) VALUES(?,?,?,?,?)",
-                     (ep["id"], stage, ref_id, "pending", db.now()))
+    gid = db.execute("INSERT INTO gates(episode_id, stage, ref_id, status, report, created_at) VALUES(?,?,?,?,?,?)",
+                     (ep["id"], stage, ref_id, "pending", db.jdumps(report or {}), db.now()))
     set_stage(ep["id"], f"validation_{stage}", "waiting_validation")
     log("gate.open", f"En attente de votre validation : {STAGE_LABELS[f'validation_{stage}']}",
         series_id=ep["series_id"], episode_id=ep["id"])
@@ -182,7 +203,9 @@ def require_gate(ep: dict, stage: str, ref_id: int | None = None) -> None:
                           code="gate_required")
 
 
-def decide_gate(gate_id: int, action: str, note: str = "", scene_index: int | None = None) -> dict[str, Any]:
+def decide_gate(gate_id: int, action: str, note: str = "", scene_index: int | None = None,
+                accept_canon: list[int] | None = None, accept_characters: list[int] | None = None,
+                target: str | None = None) -> dict[str, Any]:
     g = db.row("SELECT * FROM gates WHERE id=?", (gate_id,))
     if not g:
         raise StudioError("Validation introuvable.", status_code=404)
@@ -193,7 +216,7 @@ def decide_gate(gate_id: int, action: str, note: str = "", scene_index: int | No
     ep = get_episode(g["episode_id"])
     stage = g["stage"]
     # La validation doit porter sur la version la plus récente.
-    current = {"script": latest_script, "storyboard": latest_storyboard}.get(stage)
+    current = {"script": latest_script, "storyboard": latest_storyboard, "episode": latest_storyboard}.get(stage)
     if current:
         cur = current(ep["id"])
         if not cur or cur["id"] != g["ref_id"]:
@@ -210,6 +233,19 @@ def decide_gate(gate_id: int, action: str, note: str = "", scene_index: int | No
 
     if action == "reject":
         set_stage(ep["id"], "rejected", "rejected")
+        return get_episode(ep["id"])
+
+    if action == "changes" and stage == "episode":
+        target = target or ("scene" if scene_index is not None else "script")
+        if target == "scene" and scene_index is not None:
+            set_stage(ep["id"], "script", "in_progress")
+            enqueue("scene_regen", ep, {"scene_index": int(scene_index), "note": note})
+        elif target == "render":
+            set_stage(ep["id"], "assets", "in_progress")
+            enqueue("assets", ep, {})
+        else:
+            set_stage(ep["id"], "script", "in_progress")
+            enqueue("script", ep, {"note": note, "seed": _next_seed(ep)})
         return get_episode(ep["id"])
 
     if action == "changes":
@@ -238,7 +274,9 @@ def decide_gate(gate_id: int, action: str, note: str = "", scene_index: int | No
     elif stage == "preview":
         set_stage(ep["id"], "final", "in_progress")
         enqueue("final", ep)
-    elif stage == "final":
+    elif stage in ("final", "episode"):
+        if stage == "episode":
+            _on_script_approved(ep, accept_canon, accept_characters)
         sc = latest_script(ep["id"])
         db.execute("INSERT INTO timeline(series_id, episode_id, label, text, created_at) VALUES(?,?,?,?,?)",
                    (ep["series_id"], ep["id"], f"Épisode {ep['number']}",
@@ -253,26 +291,31 @@ def _next_seed(ep: dict) -> int:
     return int(r["n"]) if r else 0
 
 
-def _on_script_approved(ep: dict) -> None:
+def _on_script_approved(ep: dict, accept_canon: list[int] | None = None,
+                        accept_characters: list[int] | None = None) -> None:
+    """accept_* = None (mode détaillé) : les propositions partent en validation séparée.
+    Listes d'indices (mode épisode) : cochées → canon / personnage validé, décochées → rejetées (historisé)."""
     sc = latest_script(ep["id"])["content"]
     ends_vote = 1 if sc.get("ending", {}).get("type") == "vote" else 0
     title = sc.get("title", "")
     db.execute("UPDATE episodes SET ends_with_vote=?, title=? WHERE id=?", (ends_vote, title, ep["id"]))
     ts = db.now()
-    for p in sc.get("canon_proposals", []):
-        db.execute("INSERT INTO canon_facts(series_id, text, category, status, source, episode_id, created_at)"
-                   " VALUES(?,?,?,?,?,?,?)", (ep["series_id"], p["text"], p.get("category", "fait"), "proposed",
-                                              "episode", ep["id"], ts))
+    for i, p in enumerate(sc.get("canon_proposals", [])):
+        st = "proposed" if accept_canon is None else ("canon" if i in accept_canon else "rejected")
+        db.execute("INSERT INTO canon_facts(series_id, text, category, status, source, episode_id, created_at,"
+                   " decided_at) VALUES(?,?,?,?,?,?,?,?)", (ep["series_id"], p["text"], p.get("category", "fait"), st,
+                                                           "episode", ep["id"], ts, None if st == "proposed" else ts))
     prefix = {"horror": "hor", "football": "fb", "isekai": "isk"}[ep["series_id"]]
-    for ch in sc.get("new_characters", []):
+    for i, ch in enumerate(sc.get("new_characters", [])):
         import re
+        cst = "proposed" if accept_characters is None else ("canon" if i in accept_characters else "rejected")
         cid = f"{prefix}." + (re.sub(r"[^a-z0-9]+", "_", ch["name"].lower()).strip("_") or "nouveau")
         if db.row("SELECT id FROM characters WHERE id=?", (cid,)):
             continue
         db.execute("INSERT INTO characters(id, series_id, name, role, description, appearance, status, version,"
                    " created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
                    (cid, ep["series_id"], ch["name"], ch.get("role", ""), ch.get("description", ""),
-                    db.jdumps({"archetype": "human"}), "proposed", 1, ts, ts))
+                    db.jdumps({"archetype": "human"}), cst, 1, ts, ts))
 
 
 # ------------------------------------------------------------ éditions ciblées
@@ -317,7 +360,8 @@ def edit_storyboard_shot(episode_id: int, shot_id: str, changes: dict) -> dict[s
         raise StudioError("Aucun storyboard pour cet épisode.")
     if db.row("SELECT id FROM jobs WHERE episode_id=? AND status IN ('queued','running')", (episode_id,)):
         raise StudioError("Une tâche est en cours pour cet épisode.", status_code=409)
-    require_gate(ep, "script")
+    if not is_episode_mode(ep):
+        require_gate(ep, "script")
     allowed = {"camera", "duration", "characters", "caption", "sfx", "transition"}
     bad = set(changes) - allowed
     if bad:
@@ -327,7 +371,8 @@ def edit_storyboard_shot(episode_id: int, shot_id: str, changes: dict) -> dict[s
     if not shot:
         raise StudioError("Plan introuvable.", status_code=404)
     shot.update(changes)
-    db.execute("UPDATE gates SET status='superseded', decided_at=? WHERE episode_id=? AND stage IN ('storyboard','preview','final')"
+    db.execute("UPDATE gates SET status='superseded', decided_at=? WHERE episode_id=?"
+               " AND stage IN ('storyboard','preview','final','episode')"
                " AND status IN ('pending','approved')", (db.now(), episode_id))
     set_stage(episode_id, "storyboard", "in_progress")
     enqueue("storyboard", ep, {"base": content, "edited_shot": shot_id})
@@ -348,7 +393,7 @@ def retry_stage(episode_id: int) -> dict[str, Any]:
         return get_episode(episode_id)
     if stage not in mapping:
         raise StudioError("Rien à relancer : l'épisode attend une validation ou est terminé.")
-    enqueue(mapping[stage], ep, {"then": "preview"} if stage == "assets" else {})
+    enqueue(mapping[stage], ep, {"then": "preview"} if stage == "assets" and not is_episode_mode(ep) else {})
     return get_episode(episode_id)
 
 

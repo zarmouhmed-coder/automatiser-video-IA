@@ -85,7 +85,8 @@ def test_full_demo_episode_until_publication(client):
     wait_idle()
     d = client.get(f"/api/episodes/{eid}").json()
     assert d["episode"]["status"] == "ready_to_publish"
-    pack = d["packs"][0]["content"]
+    assert set(d["packs"][0]["content"]["langs"]) == {"fr", "en"}
+    pack = d["packs"][0]["content"]["langs"]["fr"]
     assert set(pack["platforms"]) == {"tiktok", "youtube_shorts", "instagram_reels"}
     assert all(len(o) <= 25 for o in pack["platforms"]["tiktok"]["poll"]["options"])
     assert (config.DATA_DIR / pack["files"]["thumbnail"]).exists()
@@ -183,3 +184,103 @@ def test_migrations_idempotent_and_backup(client):
     from app import db
     assert db.migrate() == []
     assert client.post("/api/backups").json()["path"]
+
+
+# ---------------------------------------------------------------- v2 : une validation, FR + EN, voix, inspiration
+
+def test_episode_mode_single_validation_bilingual_with_voices(client):
+    from app import config
+    from app.core import update_settings
+    update_settings({"validation_mode": "episode", "tts_provider": "piper", "languages": "fr,en"})
+    try:
+        r = client.post("/api/episodes", json={"series_id": "isekai", "intent": "Elio découvre que la carte ment",
+                                               "duration_s": 20, "allow_vote": 2})
+        assert r.status_code == 200, r.text
+        eid = r.json()["id"]
+        wait_idle(900)
+        d = client.get(f"/api/episodes/{eid}").json()
+        pending = [g for g in d["gates"] if g["status"] == "pending"]
+        # une seule validation, ouverte seulement à la fin, avec le rapport complet
+        assert len(pending) == 1 and pending[0]["stage"] == "episode", [j["error"] for j in d["jobs"]]
+        assert len([g for g in d["gates"] if g["stage"] != "episode"]) == 0
+        rep = pending[0]["report"]
+        assert rep["scenes"] and all(s["why"] for s in rep["scenes"])
+        assert rep["title"]["en"] and rep["title"]["en"] != rep["title"]["fr"]
+        assert rep["ending"]["type"] == "vote" and rep["ending"]["options"]["en"]
+        assert rep["voices"]["provider"] == "piper", rep["voices"]
+        langs = {r_["lang"] for r_ in d["renders"] if r_["kind"] == "final"}
+        assert langs == {"fr", "en"}
+        man = d["assets_manifest"]["langs"]
+        assert man["fr"]["voices"] and man["en"]["voices"]
+        # la piste audio contient bien des voix : le fichier de voix existe et n'est pas silencieux
+        import numpy as np
+        from app.render import audio
+        v = next(iter(man["en"]["voices"].values()))
+        x = audio.read_wav(config.DATA_DIR / v["rel"])
+        assert len(x) > audio.SR * 0.5 and np.abs(x).max() > 0.3
+        # approbation avec une seule proposition de canon cochée
+        n_props = len(rep["canon_proposals"])
+        g = pending[0]
+        r = client.post(f"/api/gates/{g['id']}/decide", json={"action": "approve", "accept_canon": [0]})
+        assert r.status_code == 200, r.text
+        wait_idle()
+        d = client.get(f"/api/episodes/{eid}").json()
+        assert d["episode"]["status"] == "ready_to_publish"
+        pack = d["packs"][0]["content"]
+        assert set(pack["langs"]) == {"fr", "en"}
+        en = pack["langs"]["en"]["platforms"]["tiktok"]
+        assert "#isekai" in en["hashtags"] and en["poll"]["options"]
+        facts = [f for f in client.get("/api/series/isekai/bible").json()["facts"] if f["episode_id"] == eid]
+        assert sum(f["status"] == "canon" for f in facts) == 1
+        assert sum(f["status"] == "rejected" for f in facts) == n_props - 1
+        # le verrou de vote s'applique aussi en mode épisode
+        assert client.post("/api/episodes", json={"series_id": "isekai", "intent": "La suite", "duration_s": 20}).status_code == 423
+    finally:
+        update_settings({"validation_mode": "detailed"})
+
+
+def test_episode_mode_scene_change_reruns_to_single_gate(client):
+    from app.core import update_settings
+    update_settings({"validation_mode": "episode", "languages": "fr"})
+    try:
+        # l'épisode football précédent attend sa validation : on le rejette (sinon la série reste bloquée)
+        for e in client.get("/api/episodes?series_id=football").json():
+            for g in client.get(f"/api/episodes/{e['id']}").json()["gates"]:
+                if g["status"] == "pending":
+                    client.post(f"/api/gates/{g['id']}/decide", json={"action": "reject"})
+        eid = client.post("/api/episodes", json={"series_id": "football", "intent": "Entraînement avant le derby",
+                                                 "duration_s": 15, "allow_vote": 0}).json()["id"]
+        wait_idle(600)
+        g = [g for g in client.get(f"/api/episodes/{eid}").json()["gates"] if g["status"] == "pending"][0]
+        r = client.post(f"/api/gates/{g['id']}/decide", json={"action": "changes", "note": "Plus d'intensité",
+                                                              "target": "scene", "scene_index": 1})
+        assert r.status_code == 200
+        wait_idle(600)
+        d = client.get(f"/api/episodes/{eid}").json()
+        assert d["scripts"][0]["origin"] == "scene_regen"
+        assert [g["stage"] for g in d["gates"] if g["status"] == "pending"] == ["episode"]
+    finally:
+        update_settings({"validation_mode": "detailed", "languages": "fr,en"})
+
+
+def test_inspiration_video_analysis(client):
+    import subprocess
+    import tempfile
+    from pathlib import Path
+    from app import config
+    td = Path(tempfile.mkdtemp())
+    clip = td / "ref.mp4"
+    # 3 plans de couleurs différentes de 1 s chacun → 3 coupes attendues
+    subprocess.run([config.ffmpeg_exe(), "-v", "error", "-f", "lavfi", "-i", "color=c=red:s=180x320:d=1",
+                    "-f", "lavfi", "-i", "color=c=blue:s=180x320:d=1", "-f", "lavfi", "-i", "testsrc2=s=180x320:d=1",
+                    "-filter_complex", "[0][1][2]concat=n=3:v=1:a=0", "-r", "25", str(clip)], check=True)
+    with open(clip, "rb") as f:
+        r = client.post("/api/inspirations/upload", files={"file": ("ref.mp4", f, "video/mp4")},
+                        data={"series_id": "football"})
+    assert r.status_code == 200, r.text
+    p = r.json()["profile"]
+    assert r.json()["status"] == "ready"
+    assert 2 <= p["shots"] <= 4 and 0.5 <= p["avg_shot_s"] <= 1.6, p
+    assert p["palette"] and p["description"]
+    bad = client.post("/api/inspirations/link", json={"url": "https://example.com/video"})
+    assert bad.status_code == 400

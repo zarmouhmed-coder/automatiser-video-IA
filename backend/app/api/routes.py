@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, File, Form, UploadFile
 from pydantic import BaseModel, Field
 
-from .. import bible, config, db, library
+from .. import bible, config, db, inspiration, library
 from ..agents import agents
 from ..core import StudioError, get_settings, log, record_choice, update_settings
 from ..llm import providers
@@ -53,8 +53,8 @@ def dashboard() -> dict[str, Any]:
             counts[e["status"]] = counts.get(e["status"], 0) + 1
         current = next((e for e in eps if e["status"] not in ("published", "rejected")), None)
         if current:
-            current["stage_label"] = engine.STAGE_LABELS.get(current["stage"], current["stage"])
-            current["stage_index"] = engine.STAGE_ORDER.index(current["stage"]) if current["stage"] in engine.STAGE_ORDER else 0
+            full = engine.get_episode(current["id"])
+            current.update(engine.stage_progress(full))
         pending = db.row("SELECT COUNT(*) AS n FROM gates g JOIN episodes e ON e.id=g.episode_id WHERE e.series_id=?"
                          " AND g.status='pending'", (s["id"],))["n"]
         series.append({"id": s["id"], "code": s["code"], "name": s["name"], "genre": s["genre"], "accent": s["accent"],
@@ -131,6 +131,9 @@ class DecideBody(BaseModel):
     note: str = ""
     scene_index: int | None = None
     final_text: str | None = None
+    accept_canon: list[int] | None = None
+    accept_characters: list[int] | None = None
+    target: str | None = None
 
 
 @router.post("/facts/{fact_id}/decide")
@@ -194,11 +197,69 @@ class EpisodeCreate(BaseModel):
     duration_s: int = 45
     style: str = ""
     allow_vote: int = Field(1, description="0 jamais, 1 auto, 2 obligatoire")
+    inspiration_id: int | None = None
+    inspiration_url: str = ""
 
 
 @router.post("/episodes")
 def create_episode(body: EpisodeCreate):
-    return engine.create_episode(body.series_id, body.intent, body.duration_s, body.style, body.allow_vote)
+    iid = body.inspiration_id
+    if body.inspiration_url.strip() and not iid:
+        insp = inspiration.add_tiktok(body.inspiration_url, body.series_id)
+        iid = insp["id"]
+    return engine.create_episode(body.series_id, body.intent, body.duration_s, body.style, body.allow_vote, iid)
+
+
+# ------------------------------------------------------------------ inspirations
+
+@router.get("/inspirations")
+def inspirations_list(series_id: str | None = None):
+    return inspiration.list_all(series_id)
+
+
+class InspirationLink(BaseModel):
+    url: str
+    series_id: str | None = None
+    notes: str = ""
+
+
+@router.post("/inspirations/link")
+def inspiration_link(body: InspirationLink):
+    return inspiration.add_tiktok(body.url, body.series_id or None, body.notes)
+
+
+@router.post("/inspirations/upload")
+async def inspiration_upload(file: UploadFile = File(...), series_id: str = Form(""), notes: str = Form(""),
+                             url: str = Form("")):
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "upload"
+        p.write_bytes(await file.read())
+        return inspiration.add_file(p, file.filename or "reference.mp4", series_id or None, notes, url)
+
+
+@router.delete("/inspirations/{iid}")
+def inspiration_delete(iid: int):
+    if db.row("SELECT id FROM episodes WHERE inspiration_id=? AND status NOT IN ('published','rejected')", (iid,)):
+        raise StudioError("Cette inspiration est utilisée par un épisode en cours.")
+    db.execute("DELETE FROM inspirations WHERE id=?", (iid,))
+    shutil.rmtree(config.INSPIRATIONS_DIR / str(iid), ignore_errors=True)
+    return {"deleted": iid}
+
+
+# ------------------------------------------------------------------ voix
+
+@router.get("/voices")
+def voices_status():
+    from ..render import voices
+    out = voices.status()
+    out["cast"] = {s["id"]: voices.voice_table(bible.characters(s["id"])) for s in bible.list_series()}
+    return out
+
+
+@router.post("/voices/download")
+def voices_download():
+    jid = engine.enqueue("models_download", None)
+    return {"job_id": jid}
 
 
 @router.get("/episodes")
@@ -210,14 +271,15 @@ def episodes(series_id: str | None = None):
         params.append(series_id)
     out = db.rows(sql + " ORDER BY updated_at DESC", params)
     for e in out:
-        e["stage_label"] = engine.STAGE_LABELS.get(e["stage"], e["stage"])
+        e.update(engine.stage_progress(e))
     return out
 
 
 @router.get("/episodes/{episode_id}")
 def episode_detail(episode_id: int):
     ep = engine.get_episode(episode_id)
-    ep["stage_label"] = engine.STAGE_LABELS.get(ep["stage"], ep["stage"])
+    ep.update(engine.stage_progress(ep))
+    ep["inspiration"] = inspiration.get(ep.get("inspiration_id"))
     scripts = db.rows("SELECT * FROM script_versions WHERE episode_id=? ORDER BY version DESC", (episode_id,))
     for s in scripts:
         s["content"] = db.jloads(s["content"], {})
@@ -236,7 +298,8 @@ def episode_detail(episode_id: int):
     from ..render import pipeline
     return {
         "episode": ep, "scripts": scripts, "critiques": crits, "storyboards": sbs, "renders": renders,
-        "packs": packs, "gates": db.rows("SELECT * FROM gates WHERE episode_id=? ORDER BY id DESC", (episode_id,)),
+        "packs": packs, "gates": [dict(g, report=db.jloads(g["report"], {})) for g in
+                                   db.rows("SELECT * FROM gates WHERE episode_id=? ORDER BY id DESC", (episode_id,))],
         "jobs": db.rows("SELECT * FROM jobs WHERE episode_id=? ORDER BY id DESC LIMIT 30", (episode_id,)),
         "events": db.rows("SELECT * FROM events WHERE episode_id=? ORDER BY id DESC LIMIT 80", (episode_id,)),
         "votes": db.rows("SELECT * FROM votes WHERE episode_id=? ORDER BY id DESC", (episode_id,)),
@@ -264,9 +327,10 @@ class SceneRegen(BaseModel):
 def regen_scene(episode_id: int, scene_index: int, body: SceneRegen):
     ep = engine.get_episode(episode_id)
     engine.assert_unlocked(ep)
-    g = db.row("SELECT * FROM gates WHERE episode_id=? AND stage='script' AND status='pending'", (episode_id,))
+    g = db.row("SELECT * FROM gates WHERE episode_id=? AND stage IN ('script','episode') AND status='pending'",
+               (episode_id,))
     if not g:
-        raise StudioError("La réécriture d'une scène se fait pendant la validation du scénario.")
+        raise StudioError("La réécriture d'une scène se fait pendant la validation de l'épisode.")
     return engine.decide_gate(g["id"], "changes", body.note or f"Réécrire la scène {scene_index + 1}", scene_index)
 
 
@@ -295,7 +359,8 @@ def published(episode_id: int, body: PublishedBody):
 
 @router.post("/gates/{gate_id}/decide")
 def decide(gate_id: int, body: DecideBody):
-    return engine.decide_gate(gate_id, body.action, body.note, body.scene_index)
+    return engine.decide_gate(gate_id, body.action, body.note, body.scene_index, body.accept_canon,
+                              body.accept_characters, body.target)
 
 
 def _validations() -> list[dict]:
@@ -304,7 +369,8 @@ def _validations() -> list[dict]:
                      " WHERE g.status='pending' ORDER BY g.id"):
         items.append({"type": "gate", "id": g["id"], "series_id": g["series_id"], "episode_id": g["episode_id"],
                       "title": f"Ép.{g['number']} {g['title']} — {engine.STAGE_LABELS['validation_' + g['stage']]}",
-                      "stage": g["stage"], "created_at": g["created_at"]})
+                      "stage": g["stage"], "created_at": g["created_at"],
+                      "report": db.jloads(g["report"], {}) if g["stage"] == "episode" else None})
     for f in db.rows("SELECT * FROM canon_facts WHERE status='proposed' ORDER BY id"):
         items.append({"type": "canon", "id": f["id"], "series_id": f["series_id"], "episode_id": f["episode_id"],
                       "title": f["text"], "category": f["category"], "created_at": f["created_at"]})

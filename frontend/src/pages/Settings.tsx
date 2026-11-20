@@ -65,10 +65,36 @@ export default function Settings() {
                 <option key={k} value={k}>{v.label}{v.ready ? "" : " — configuration requise"}</option>
               ))}
             </select></div>
+          {s.tts_provider === "piper" && (
+            <div className="list-item small">
+              {status.tts.piper_models.ready ? "✓ Voix Piper installées (FR : 3 voix, EN : 4 voix)." :
+                `Voix à télécharger : ${status.tts.piper_models.missing.length} modèle(s) (~500 Mo, une seule fois).`}
+              {!status.tts.piper_models.ready && <div style={{ marginTop: 6 }}><button className="sm" onClick={() => run(() => api.post("/api/voices/download"), "Téléchargement lancé (voir la file d'attente du Dashboard)")}>⤓ Télécharger les voix maintenant</button></div>}
+            </div>
+          )}
           {s.tts_provider === "elevenlabs" && <SecretField k="ELEVENLABS_API_KEY" set={data.secrets.ELEVENLABS_API_KEY} reload={reload} />}
           {status.tts[s.tts_provider]?.note && <p className="tiny muted">{status.tts[s.tts_provider].note}</p>}
         </div>
         <div className="panel">
+          <h2>Production</h2>
+          <div className="field"><label>Validations</label>
+            <select value={s.validation_mode} onChange={(e) => set("validation_mode", e.target.value)}>
+              <option value="episode">Une seule validation par épisode, tout expliqué (recommandé)</option>
+              <option value="detailed">Détaillé : 4 validations (scénario, storyboard, prévisu, rendu)</option>
+            </select></div>
+          <div className="field"><label>Versions produites</label>
+            <select value={s.languages} onChange={(e) => set("languages", e.target.value)}>
+              <option value="fr,en">Français + Anglais</option>
+              <option value="fr">Français seulement</option>
+            </select></div>
+          <div className="field"><label>Traduction anglaise</label>
+            <select value={s.translation_provider} onChange={(e) => set("translation_provider", e.target.value)}>
+              <option value="auto">Automatique (IA configurée, sinon modèle local hors ligne)</option>
+              <option value="argos">Modèle local hors ligne uniquement (gratuit)</option>
+              <option value="llm">IA configurée uniquement</option>
+            </select></div>
+          <p className="tiny muted">Le réglage de validation s'applique aux nouveaux épisodes.</p>
+          <hr />
           <h2>Budgets, quotas et limites</h2>
           <div className="grid g2">
             {num("budget_monthly_usd", "Budget IA mensuel ($)", 0.5)}

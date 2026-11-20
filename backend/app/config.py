@@ -18,6 +18,8 @@ LIBRARY_DIR = DATA_DIR / "library"
 EXPORTS_DIR = DATA_DIR / "exports"
 BACKUPS_DIR = DATA_DIR / "backups"
 BIBLES_DIR = DATA_DIR / "bibles"
+MODELS_DIR = Path(os.environ.get("MVS_MODELS_DIR", DATA_DIR / "models")).resolve()
+INSPIRATIONS_DIR = DATA_DIR / "inspirations"
 ASSETS_DIR = ROOT / "assets"
 FONTS_DIR = ASSETS_DIR / "fonts"
 FRONTEND_DIST = ROOT / "frontend" / "dist"
@@ -33,7 +35,10 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "anthropic_fallbacks": True,       # repli serveur en cas de refus de sécurité
     "ollama_url": "http://127.0.0.1:11434",
     "ollama_model": "llama3.1",
-    "tts_provider": "none",            # none | espeak | elevenlabs
+    "tts_provider": "piper",           # piper | espeak | elevenlabs | none
+    "languages": "fr,en",              # versions produites pour chaque épisode
+    "validation_mode": "episode",      # episode (1 validation expliquée) | detailed (4 validations)
+    "translation_provider": "auto",    # auto | llm | argos
     "elevenlabs_model": "eleven_multilingual_v2",
     "budget_monthly_usd": 20.0,
     "budget_episode_usd": 2.0,
@@ -107,5 +112,5 @@ def ffmpeg_exe() -> str | None:
 
 
 def ensure_dirs() -> None:
-    for d in (DATA_DIR, MEDIA_DIR, LIBRARY_DIR, EXPORTS_DIR, BACKUPS_DIR, BIBLES_DIR):
+    for d in (DATA_DIR, MEDIA_DIR, LIBRARY_DIR, EXPORTS_DIR, BACKUPS_DIR, BIBLES_DIR, MODELS_DIR, INSPIRATIONS_DIR):
         d.mkdir(parents=True, exist_ok=True)

@@ -51,8 +51,21 @@ def _writer_prompt(ep: dict, mem: dict, extra: str = "") -> str:
         f"Lieux disponibles : {', '.join(LOCATIONS[ep['series_id']])}\n"
         f"Identifiants de personnages disponibles : {chars}. Utilise exactement ces identifiants.\n"
         "Plans de 1,5 à 6 secondes, 3 scènes environ, maximum 3 personnages par plan.\n"
+        f"{_style_hint(ep)}"
         f"{extra}"
     )
+
+
+def _style_hint(ep: dict) -> str:
+    from .. import inspiration
+
+    st = inspiration.style_for(ep)
+    if not st:
+        return ""
+    hint = f"Inspiration de style choisie par le réalisateur : {st.get('description', '')}."
+    if st.get("avg_shot_s"):
+        hint += f" Vise des plans d'environ {st['avg_shot_s']} s."
+    return hint + " (Ne reprends aucun contenu de la référence : seulement le rythme et l'énergie.)\n"
 
 
 # ------------------------------------------------------------------ scénaristes

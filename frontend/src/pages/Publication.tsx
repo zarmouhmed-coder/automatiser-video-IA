@@ -3,7 +3,10 @@ import { api, fileUrl, fmtDate } from "../api";
 import { CopyBox, Empty, PageHead, SeriesPill, Status, useAction, usePoll } from "../ui";
 
 function PackView({ item, reload }: { item: any; reload: () => void }) {
-  const pack = item.pack?.content;
+  const content = item.pack?.content;
+  const langs: string[] = content?.langs ? Object.keys(content.langs) : content ? ["fr"] : [];
+  const [lang, setLang] = useState("fr");
+  const pack = content?.langs ? (content.langs[lang] || content.langs[langs[0]]) : content;
   const [pf, setPf] = useState("tiktok");
   const [url, setUrl] = useState("");
   const { run, busy } = useAction();
@@ -11,9 +14,13 @@ function PackView({ item, reload }: { item: any; reload: () => void }) {
   const p = pack.platforms[pf];
   const e = item.episode;
   return (
+    <>
+    {langs.length > 1 && (
+      <div className="tabs">{langs.map((l) => <button key={l} className={lang === l ? "on" : ""} onClick={() => setLang(l)}>{l === "fr" ? "🇫🇷 Version française" : "🇬🇧 English version"}</button>)}</div>
+    )}
     <div className="grid" style={{ gridTemplateColumns: "minmax(220px, 300px) minmax(0, 1fr)" }}>
       <div className="stack">
-        <video src={fileUrl(pack.files.video) + "#t=1.5"} controls playsInline preload="metadata" />
+        <video key={pack.files.video} src={fileUrl(pack.files.video) + "#t=1.5"} controls playsInline preload="metadata" />
         <a href={fileUrl(pack.files.video)} download><button className="primary" style={{ width: "100%" }}>⤓ Télécharger le MP4</button></a>
         <img src={fileUrl(pack.files.thumbnail)} alt="Miniature" style={{ width: "100%", borderRadius: 10 }} />
         <a href={fileUrl(pack.files.thumbnail)} download className="small">⤓ Miniature</a>
@@ -35,7 +42,7 @@ function PackView({ item, reload }: { item: any; reload: () => void }) {
         {e.published_info?.platforms?.map((x: any, i: number) => <div key={i} className="small">✓ {x.platform} · {fmtDate(x.at)} {x.url && <a href={x.url} target="_blank" rel="noreferrer">lien</a>}</div>)}
         <div className="row" style={{ marginTop: 8 }}>
           <input style={{ maxWidth: 340 }} placeholder="Lien de la publication (facultatif)" value={url} onChange={(ev) => setUrl(ev.target.value)} />
-          <button className="amber" disabled={busy} onClick={() => run(() => api.post(`/api/episodes/${e.id}/published`, { platform: p.label, url }),
+          <button className="amber" disabled={busy} onClick={() => run(() => api.post(`/api/episodes/${e.id}/published`, { platform: `${p.label} (${lang.toUpperCase()})`, url }),
             e.ends_with_vote ? "Marqué publié : le vote est ouvert dans Communauté" : "Marqué comme publié").then(reload)}>
             Marquer publié sur {p.label}
           </button>
@@ -43,6 +50,7 @@ function PackView({ item, reload }: { item: any; reload: () => void }) {
         {e.ends_with_vote ? <p className="tiny muted">Cet épisode se termine sur un vote : une fois publié, saisissez le résultat officiel dans Communauté pour débloquer l'épisode suivant.</p> : null}
       </div>
     </div>
+    </>
   );
 }
 

@@ -14,6 +14,19 @@ from PIL import Image, ImageDraw, ImageFilter
 from . import backgrounds
 from .characters import font, hex_rgb, sprite
 
+TEXTS = {
+    "fr": {"vote_sub": "Votez dans le sondage ou en commentaire", "tbc": "À SUIVRE", "follow": "Abonnez-vous pour la suite",
+           "fiction": "Fiction • images et sons de synthèse", "choose": "À vous de choisir", "ep": "ÉP.",
+           "system": "◆ SYSTÈME"},
+    "en": {"vote_sub": "Vote in the poll or in the comments", "tbc": "TO BE CONTINUED", "follow": "Follow for the next part",
+           "fiction": "Fiction • synthetic images and sounds", "choose": "Your call", "ep": "EP.", "system": "◆ SYSTEM"},
+}
+
+
+def L(ctx, key: str) -> str:
+    return TEXTS.get(ctx.lang, TEXTS["fr"])[key]
+
+
 DEPTH = {"far": 0.35, "mid": 0.7, "chars": 0.85, "near": 1.15}
 
 
@@ -29,6 +42,9 @@ class RenderContext:
     characters: dict  # id -> fiche
     envelopes: dict = field(default_factory=dict)  # shot_id -> enveloppe voix (par image)
     shot_durations: dict = field(default_factory=dict)
+    lang: str = "fr"
+    style: dict = field(default_factory=dict)  # profil d'inspiration (palette, contraste, mouvement…)
+    energy: float = 1.0
 
     @property
     def k(self) -> float:
@@ -39,23 +55,23 @@ def ease(t: float) -> float:
     return t * t * (3 - 2 * t)
 
 
-def camera(shot: dict, t: float, frame: int) -> tuple[float, float, float]:
+def camera(shot: dict, t: float, frame: int, energy: float = 1.0) -> tuple[float, float, float]:
     """Renvoie (zoom, décalage x, décalage y) en fraction de l'image."""
     cam, e = shot.get("camera", "static"), ease(min(1.0, max(0.0, t)))
     z, x, y = 1.0 + 0.02 * e, 0.0, 0.0
     if cam == "push_in":
-        z = 1.0 + 0.14 * e
+        z = 1.0 + 0.14 * energy * e
     elif cam == "pull_out":
-        z = 1.14 - 0.14 * e
+        z = 1 + 0.14 * energy * (1 - e)
     elif cam == "pan_left":
-        z, x = 1.06, 0.06 - 0.12 * e
+        z, x = 1.06, (0.06 - 0.12 * e) * energy
     elif cam == "pan_right":
-        z, x = 1.06, -0.06 + 0.12 * e
+        z, x = 1.06, (-0.06 + 0.12 * e) * energy
     elif cam == "tilt_up":
-        z, y = 1.06, -0.05 + 0.1 * e
+        z, y = 1.06, (-0.05 + 0.1 * e) * energy
     elif cam == "shake":
         rng = random.Random(frame)
-        amp = 0.012 * (1 - 0.6 * t)
+        amp = 0.012 * energy * (1 - 0.6 * t)
         z, x, y = 1.07, rng.uniform(-amp, amp), rng.uniform(-amp, amp)
     return z, x, y
 
@@ -114,6 +130,20 @@ def _particles(W: int, H: int, t_global: float, color: tuple) -> Image.Image:
     return img.filter(ImageFilter.GaussianBlur(1.5))
 
 
+def _grade(arr: np.ndarray, st: dict) -> np.ndarray:
+    """Étalonnage doux vers le style de l'inspiration (saturation, contraste, luminosité, teinte)."""
+    gray = arr.mean(axis=2, keepdims=True)
+    sat = float(np.clip(0.75 + st.get("saturation", 0.35) * 0.9, 0.7, 1.35))
+    arr = gray + (arr - gray) * sat
+    con = float(np.clip(0.85 + st.get("contrast", 0.4) * 0.45, 0.85, 1.25))
+    arr = (arr - 128) * con + 128
+    bri = float(np.clip(0.85 + st.get("brightness", 0.45) * 0.4, 0.85, 1.15))
+    arr = arr * bri
+    tint = np.array(hex_rgb(st.get("dominant", "#808080")), dtype=np.float32)
+    t = tint / max(float(tint.mean()), 1.0)  # teinte normalisée (moyenne 1) : pas d'assombrissement global
+    return arr * (0.85 + 0.15 * t)
+
+
 def post(frame: Image.Image, ctx: RenderContext, shot: dict, t: float, n: int, t_global: float) -> Image.Image:
     W, H = frame.size
     arr = np.asarray(frame.convert("RGB")).astype(np.float32)
@@ -135,6 +165,8 @@ def post(frame: Image.Image, ctx: RenderContext, shot: dict, t: float, n: int, t
         arr *= _vignette(W, H, 0.5)
     else:
         arr *= _vignette(W, H, 0.45)
+    if ctx.style.get("palette"):
+        arr = _grade(arr, ctx.style)
     # flash d'impact au début des plans d'action / révélation
     if shot["kind"] in ("technique", "reveal") or "impact" in shot.get("sfx", []):
         if t * shot["duration"] < 0.12:
@@ -208,7 +240,7 @@ def draw_caption(img: Image.Image, ctx: RenderContext, shot: dict, t: float) -> 
     appear = min(1.0, t * shot["duration"] / 0.25)
     if kind == "system" or cap.startswith("["):
         import re as _re
-        cap = _re.sub(r"^\[(SYSTÈME|SYSTEME)\]\s*", "", cap)
+        cap = _re.sub(r"^\[(SYSTÈME|SYSTEME|SYSTEM)\]\s*", "", cap)
         d = ImageDraw.Draw(img, "RGBA")
         f = font(int(44 * k))
         lines = _wrap(cap, f, W * 0.72, d)[:4]
@@ -217,7 +249,7 @@ def draw_caption(img: Image.Image, ctx: RenderContext, shot: dict, t: float) -> 
         x0 = int(W * 0.08)
         d.rounded_rectangle((x0, y0, W - x0, y0 + bh), radius=int(14 * k), fill=(10, 30, 70, int(215 * appear)),
                             outline=(127, 224, 255, int(255 * appear)), width=max(2, int(4 * k)))
-        d.text((x0 + 26 * k, y0 + 14 * k), "◆ SYSTÈME", font=font(int(30 * k)), fill=(127, 224, 255, int(255 * appear)))
+        d.text((x0 + 26 * k, y0 + 14 * k), L(ctx, "system"), font=font(int(30 * k)), fill=(127, 224, 255, int(255 * appear)))
         for i, line in enumerate(lines):
             d.text((x0 + 26 * k, y0 + 58 * k + i * 58 * k), line, font=f, fill=(235, 248, 255, int(255 * appear)))
         return
@@ -252,7 +284,7 @@ def draw_hud(img: Image.Image, ctx: RenderContext, t_global: float) -> None:
     d = ImageDraw.Draw(img, "RGBA")
     a = int(255 * min(1.0, (4.0 - t_global) / 0.8))
     f = font(int(30 * k))
-    label = f"{ctx.series_name}  •  ÉP. {ctx.episode_number}"
+    label = f"{ctx.series_name}  •  {L(ctx, 'ep')} {ctx.episode_number}"
     d.text((40 * k, 60 * k), label, font=f, fill=hex_rgb(ctx.accent) + (a,), stroke_width=max(1, int(3 * k)),
            stroke_fill=(0, 0, 0, a))
 
@@ -266,7 +298,7 @@ def draw_endcard(img: Image.Image, ctx: RenderContext, shot: dict, t: float) -> 
     y = H * 0.3
     if end.get("type") == "vote":
         f = font(int(64 * k))
-        for line in _wrap(end.get("question", "À vous de choisir"), f, W * 0.84, d):
+        for line in _wrap(end.get("question") or L(ctx, "choose"), f, W * 0.84, d):
             lw = d.textlength(line, font=f)
             d.text(((W - lw) / 2, y), line, font=f, fill=(255, 255, 255), stroke_width=int(4 * k), stroke_fill=(0, 0, 0))
             y += 80 * k
@@ -278,18 +310,18 @@ def draw_endcard(img: Image.Image, ctx: RenderContext, shot: dict, t: float) -> 
                                 outline=accent + (255,), width=max(2, int(5 * k)))
             d.text((W * 0.12 + 40 * k, y + 20 * k), label, font=of, fill=(255, 255, 255))
             y += 130 * k
-        sub = "Votez dans le sondage ou en commentaire"
+        sub = L(ctx, "vote_sub")
     else:
         f = font(int(110 * k))
-        txt = "À SUIVRE"
+        txt = L(ctx, "tbc")
         lw = d.textlength(txt, font=f)
         d.text(((W - lw) / 2, H * 0.4), txt, font=f, fill=accent, stroke_width=int(6 * k), stroke_fill=(0, 0, 0))
         y = H * 0.55
-        sub = "Abonnez-vous pour la suite"
+        sub = L(ctx, "follow")
     sf = font(int(36 * k), bold=False)
     lw = d.textlength(sub, font=sf)
     d.text(((W - lw) / 2, y + 30 * k), sub, font=sf, fill=(220, 230, 240))
-    tag = "Fiction • images et sons de synthèse"
+    tag = L(ctx, "fiction")
     lw = d.textlength(tag, font=font(int(26 * k), bold=False))
     d.text(((W - lw) / 2, H * 0.92), tag, font=font(int(26 * k), bold=False), fill=(150, 160, 170))
 
@@ -302,7 +334,7 @@ POS_X = {"left": 0.27, "center": 0.5, "right": 0.73}
 def render_frame(ctx: RenderContext, shot: dict, t: float, frame_no: int, t_global: float) -> Image.Image:
     """t : avancement dans le plan (0→1)."""
     W, H = ctx.width, ctx.height
-    zoom, ox, oy = camera(shot, t, frame_no)
+    zoom, ox, oy = camera(shot, t, frame_no, ctx.energy)
     far, mid, near = backgrounds.layers(shot["location"], W, H)
     frame = _place(far, W, H, zoom, ox, oy, DEPTH["far"])
     frame.alpha_composite(_place(mid, W, H, zoom, ox, oy, DEPTH["mid"]))

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, fmtDate, SERIES_COLORS } from "../api";
 import { Empty, PageHead, Status, useAction, usePoll } from "../ui";
 import { EpisodeList, GateBar, JobsPanel, useSelectedEpisode } from "./common";
@@ -119,6 +120,12 @@ export default function Scripts() {
                 <p className="small muted">Intention : {d.episode.intent} · {d.episode.duration_s}s · étape : {d.episode.stage_label}</p>
                 <JobsPanel detail={d} reload={reload} />
               </div>
+              {d.gates.some((g: any) => g.status === "pending" && g.stage === "episode") && (
+                <div className="panel" style={{ ["--accent" as any]: "var(--amber)" }}>
+                  <div className="row between"><b style={{ color: "var(--amber)" }}>Épisode prêt : validation unique en attente.</b>
+                    <Link to="/validations"><button className="primary">Voir et valider →</button></Link></div>
+                </div>
+              )}
               <GateBar detail={d} stage="script" reload={reload}
                 extra={<button className="ghost" onClick={() => { setJson(JSON.stringify(script.content, null, 2)); setEditing(true); }}>✎ Éditer à la main</button>} />
               {script ? (
@@ -149,7 +156,7 @@ export default function Scripts() {
                       </div>
                     ) : (
                       <ScriptView script={script.content} accent={SERIES_COLORS[d.episode.series_id]}
-                        canEdit={!!pendingScript && !busy && script.id === d.scripts[0].id} onRegen={regen} />
+                        canEdit={(!!pendingScript || d.gates.some((g: any) => g.status === "pending" && g.stage === "episode")) && !busy && script.id === d.scripts[0].id} onRegen={regen} />
                     )}
                   </div>
                   <div className="panel">

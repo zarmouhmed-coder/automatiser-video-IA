@@ -34,14 +34,31 @@ Arrêt : `Ctrl+C` dans le terminal. Au redémarrage, tout reprend : file d'atten
 
 ---
 
-## Parcours d'un épisode
+## Parcours d'un épisode (par défaut : UNE seule validation)
 
 ```
-Intention ─▶ Scénario (agent de la série) ─▶ Critique (directeur) ─▶ ✋ VALIDATION
-         ─▶ Storyboard (vignettes réelles) ─▶ ✋ VALIDATION
-         ─▶ Personnages / décors / voix / effets ─▶ Prévisualisation basse déf. ─▶ ✋ VALIDATION
-         ─▶ Rendu final 1080×1920 ─▶ ✋ VALIDATION ─▶ Pack de publication (manuelle)
+Intention (+ inspiration TikTok/vidéo facultative)
+  ─▶ Scénario ─▶ Critique ─▶ Traduction EN ─▶ Storyboard ─▶ Voix FR + EN ─▶ Rendus FR + EN 1080×1920
+  ─▶ ✋ UNE VALIDATION : vidéos FR/EN + explication scène par scène (pourquoi ce lieu, cette musique,
+       cette caméra), avis du directeur, fin/vote, voix, traduction, propositions de canon à cocher
+  ─▶ Packs de publication FR et EN (manuelle)
 ```
+
+Le mode « détaillé » (4 validations : scénario, storyboard, prévisualisation, rendu) reste disponible dans Paramètres.
+
+**Voix** : par défaut, voix neuronales **Piper** (gratuites, hors ligne) — une voix stable par personnage selon son
+genre et sa hauteur (réglables dans la bible), 3 voix françaises et 4 anglaises. Elles sont téléchargées
+automatiquement au premier épisode (~500 Mo, une seule fois, dans `data/models`). Si elles sont indisponibles,
+le rapport de validation l'indique clairement (repli espeak-ng ou « aucune voix »).
+
+**Traduction anglaise** : gabarits démo traduits à la main ; sinon l'IA configurée ; sinon un modèle de traduction
+local hors ligne (~80 Mo, téléchargé automatiquement). Les textes non traduits sont signalés dans le rapport.
+
+**Inspirations** (page dédiée, ou champ dans Création) : un lien TikTok donne titre/auteur/couleurs de la miniature
+(API officielle oEmbed ; TikTok n'autorise pas le téléchargement de la vidéo). Pour copier le **rythme** et le
+**mouvement**, importez la vidéo de référence : le studio mesure plans, coupes/min, mouvement, luminosité, contraste,
+saturation et palette, puis applique durée des plans, énergie caméra, étalonnage et couleur d'accent. Aucun
+contenu de la référence n'est copié.
 
 - **Corrections ciblées** : réécrire une seule scène, éditer le script à la main (nouvelle version),
   modifier un seul plan du storyboard (caméra, durée, expression, texte) — sans tout régénérer.

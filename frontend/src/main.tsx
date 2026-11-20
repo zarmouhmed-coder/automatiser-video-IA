@@ -14,6 +14,7 @@ import Archives from "./pages/Archives";
 import Publication from "./pages/Publication";
 import Settings from "./pages/Settings";
 import Bible from "./pages/Bible";
+import Inspirations from "./pages/Inspirations";
 
 const NAV = [
   ["/", "Dashboard"],
@@ -54,6 +55,9 @@ function Shell() {
               {to === "/validations" && vals && vals.length > 0 && <span className="badge">{vals.length}</span>}
             </NavLink>
           ))}
+          <NavLink to="/inspirations">
+            <span className="num">✦</span>Inspirations
+          </NavLink>
           <NavLink to="/bible">
             <span className="num">◇</span>Bibles des séries
           </NavLink>
@@ -66,7 +70,7 @@ function Shell() {
                 {status.queue_paused ? "File en pause" : "File active"}
               </div>
               <div>IA : {status.demo_mode ? "mode démo (gratuit)" : status.llm.active}</div>
-              <div>Voix : {status.tts.active === "none" ? "désactivées" : status.tts.active}</div>
+              <div>Voix : {status.tts.active === "none" ? "désactivées" : status.tts.active}{status.tts.active === "piper" && !status.tts.piper.ready ? " (à télécharger)" : ""}</div>
             </>
           ) : (
             "Connexion au serveur local…"
@@ -92,6 +96,7 @@ function Shell() {
           <Route path="/publication" element={<Publication />} />
           <Route path="/parametres" element={<Settings />} />
           <Route path="/bible" element={<Bible />} />
+          <Route path="/inspirations" element={<Inspirations />} />
           <Route path="*" element={<p>Page introuvable.</p>} />
         </Routes>
       </main>

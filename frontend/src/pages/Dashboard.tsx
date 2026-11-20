@@ -53,7 +53,7 @@ export default function Dashboard() {
                   </span>
                   <Status s={s.current.status} />
                 </div>
-                <StageBar stage={s.current.stage} accent={s.accent} />
+                <StageBar ep={s.current} accent={s.accent} />
                 <div className="small muted">Étape : {s.current.stage_label}</div>
               </div>
             ) : (
