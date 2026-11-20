@@ -57,7 +57,20 @@ def dashboard() -> dict[str, Any]:
             current.update(engine.stage_progress(full))
         pending = db.row("SELECT COUNT(*) AS n FROM gates g JOIN episodes e ON e.id=g.episode_id WHERE e.series_id=?"
                          " AND g.status='pending'", (s["id"],))["n"]
+        cover = db.row("SELECT sb.content FROM storyboards sb JOIN episodes e ON e.id=sb.episode_id WHERE e.series_id=?"
+                       " ORDER BY sb.id DESC LIMIT 1", (s["id"],))
+        cover_path = None
+        if cover:
+            shots = db.jloads(cover["content"], {}).get("shots", [])
+            cand = ([x for x in shots if x.get("thumb") and not x.get("characters") and x.get("kind") != "endcard"]
+                    or [x for x in shots if x.get("thumb")])
+            cover_path = cand[0]["thumb"] if cand else None
+        if not cover_path:
+            loc = {"horror": "corridor", "football": "stadium_night", "isekai": "plains"}[s["id"]]
+            a = db.row("SELECT path FROM assets WHERE asset_key=? ORDER BY version DESC LIMIT 1", (f"bg.{loc}.procedural",))
+            cover_path = a["path"] if a else None
         series.append({"id": s["id"], "code": s["code"], "name": s["name"], "genre": s["genre"], "accent": s["accent"],
+                       "cover": cover_path, "pitch": s["bible"].get("pitch", ""),
                        "episodes_total": len(eps), "counts": counts, "current": current,
                        "published": counts.get("published", 0), "pending_gates": pending,
                        "lock": engine.vote_lock_status(s["id"])})
@@ -244,6 +257,18 @@ def inspiration_delete(iid: int):
     db.execute("DELETE FROM inspirations WHERE id=?", (iid,))
     shutil.rmtree(config.INSPIRATIONS_DIR / str(iid), ignore_errors=True)
     return {"deleted": iid}
+
+
+# ------------------------------------------------------------------ idées du moment
+
+@router.get("/ideas/{series_id}")
+def ideas(series_id: str, lang: str = "fr"):
+    from .. import trends
+    s = bible.get_series(series_id)
+    out = trends.ideas(series_id, lang)
+    for it in out["items"]:
+        it["intent"] = trends.intent_from(it["title"], s["name"])
+    return out
 
 
 # ------------------------------------------------------------------ voix

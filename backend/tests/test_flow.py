@@ -278,9 +278,47 @@ def test_inspiration_video_analysis(client):
         r = client.post("/api/inspirations/upload", files={"file": ("ref.mp4", f, "video/mp4")},
                         data={"series_id": "football"})
     assert r.status_code == 200, r.text
-    p = r.json()["profile"]
-    assert r.json()["status"] == "ready"
+    wait_idle(600)  # l'analyse (mesures + transcription + recette) tourne en tâche de fond
+    r = client.get("/api/inspirations")
+    insp = next(i for i in r.json() if i["id"] == r.json()[0]["id"] and i["kind"] == "video")
+    p = insp["profile"]
+    assert insp["status"] == "ready", insp
     assert 2 <= p["shots"] <= 4 and 0.5 <= p["avg_shot_s"] <= 1.6, p
     assert p["palette"] and p["description"]
     bad = client.post("/api/inspirations/link", json={"url": "https://example.com/video"})
     assert bad.status_code == 400
+
+
+
+def test_recipe_presets_and_quality(client):
+    from app import config
+    from app.quality import originality
+    insps = client.get("/api/inspirations").json()
+    presets = [i for i in insps if i["kind"] == "recette"]
+    assert len(presets) == 6 and all(p["profile"].get("caption_style") for p in presets)
+    # une vidéo comparée à elle-même doit être détectée ; deux vidéos différentes, non
+    ref = next(i for i in insps if i["kind"] == "video")
+    ref_path = config.DATA_DIR / ref["file_path"]
+    assert originality(ref_path, ref_path)["matches"] > 0
+    ren = next(r for e in client.get("/api/archives").json()["episodes"] for r in e["renders"])
+    res = originality(config.DATA_DIR / ren["path"], ref_path)
+    assert res["checked"] and res["ok"], res
+
+
+def test_word_by_word_captions_and_hook(client):
+    from app.agents import agents, demo_writer, schema
+    from app import bible
+    from app.render import pipeline
+    from app.render.compositor import render_frame, word_times
+    ep = {"id": 999, "series_id": "horror", "number": 1, "intent": "test", "duration_s": 20, "allow_vote": 0}
+    sc = schema.normalize_script(demo_writer.generate(ep, bible.writer_memory("horror")), "horror")
+    h = agents.hook_score(sc)
+    assert 0 <= h["score"] <= 10 and "checks" in h
+    times = word_times("Sur la bande… c'était la voix de Clara.", 3.0)
+    assert times[0][1] == 0 and all(a[1] < b[1] for a, b in zip(times, times[1:])) and times[-1][1] < 3.0
+    plan = pipeline.build_plan(ep, sc)
+    ctx = pipeline.make_context(ep, 360, 640, 12)
+    ctx.caption_style = "word_by_word"
+    shot = next(s for s in plan["shots"] if s["text"])
+    img = render_frame(ctx, shot, 0.5, 3, 1.0)
+    assert img.size == (360, 640)

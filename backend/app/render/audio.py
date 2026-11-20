@@ -320,7 +320,8 @@ def envelope(x: np.ndarray, fps: int) -> np.ndarray:
 
 # ------------------------------------------------------------------- mixage
 
-def mix_episode(plan: dict, series_id: str, voices: dict[str, dict], out: Path) -> Path:
+def mix_episode(plan: dict, series_id: str, voices: dict[str, dict], out: Path,
+                music_db: float | None = None) -> Path:
     total = plan["total"]
     n = int(total * SR) + SR
     music = np.zeros(n)
@@ -351,7 +352,8 @@ def mix_episode(plan: dict, series_id: str, voices: dict[str, dict], out: Path) 
     # ducking : la musique baisse sous les voix
     duck = np.convolve((np.abs(vox) > 0.02).astype(float), np.ones(SR // 10) / (SR // 10), mode="same")
     music *= 1 - 0.55 * np.clip(duck * 3, 0, 1)
-    mono = music * 0.45 + amb * 0.35 + fx * 0.7 + vox
+    mlev = 0.45 if music_db is None else float(np.clip(0.45 * 10 ** ((music_db + 20) / 20), 0.12, 0.7))
+    mono = music * mlev + amb * 0.35 + fx * 0.7 + vox
     # légère stéréo : ambiance décorrélée
     left = mono + amb * 0.08
     right = mono - amb * 0.08

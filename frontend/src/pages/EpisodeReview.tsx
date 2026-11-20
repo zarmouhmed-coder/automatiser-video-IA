@@ -68,6 +68,13 @@ export default function EpisodeReview({ gate, episode, onDone }: { gate: any; ep
               <ul className="tiny" style={{ paddingLeft: 16, margin: "4px 0" }}>{r.inspiration.applied.map((a: string, i: number) => <li key={i}>{a}</li>)}</ul>
             </div>
           )}
+          {r.originality && (
+            <div className="list-item">
+              <b className="small">🛡 Originalité</b>
+              <div className={`tiny ${r.originality.ok ? "" : "lock"}`}>{r.originality.verdict || r.originality.reason}</div>
+              {r.originality.checked && <div className="tiny muted">{r.originality.frames} images comparées à la référence.</div>}
+            </div>
+          )}
           <div className="list-item">
             <b className="small">🌐 Traduction anglaise</b>
             <div className="tiny">{r.translation?.source || "—"}</div>
@@ -106,6 +113,12 @@ export default function EpisodeReview({ gate, episode, onDone }: { gate: any; ep
           <div className="grid g2">
             <div className="list-item">
               <b className="small">🎬 Avis du directeur {avg != null && <span className="pill" style={{ marginLeft: 6 }}>{avg}/100</span>}</b>
+              {r.critique?.hook && (
+                <div className="tiny" style={{ marginTop: 4 }}>
+                  <span className="meter">Accroche <i><span style={{ width: `${r.critique.hook.score * 10}%` }} /></i> {r.critique.hook.score}/10</span>
+                  {r.critique.hook.missing?.length > 0 && <span className="muted"> — manque : {r.critique.hook.missing.join(", ")}</span>}
+                </div>
+              )}
               <div className="tiny muted">{r.critique?.summary}</div>
               {(r.critique?.issues || []).slice(0, 6).map((i: any, k: number) => (
                 <div key={k} className={`issue ${i.severity}`} style={{ marginTop: 4 }}><div className="tiny">{i.message}</div><div className="tiny muted">→ {i.suggestion}</div></div>

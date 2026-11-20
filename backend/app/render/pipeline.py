@@ -91,10 +91,12 @@ def make_context(ep: dict, width: int, height: int, fps: int, envelopes: dict | 
 
     s = bible.get_series(ep["series_id"])
     style = inspiration.style_for(ep)
+    cap = style.get("caption_style") or ("word_by_word" if get_settings().get("caption_style", "tiktok") == "tiktok"
+                                         else "phrase")
     return RenderContext(width=width, height=height, fps=fps, series_id=ep["series_id"], series_name=s["name"],
                          accent=style.get("accent") or s["accent"], episode_number=ep["number"],
                          characters=bible.character_map(ep["series_id"]), envelopes=envelopes or {},
-                         lang=lang, style=style, energy=inspiration.camera_energy(style))
+                         lang=lang, style=style, energy=inspiration.camera_energy(style), caption_style=cap)
 
 
 def storyboard_thumbnails(ep: dict, plan: dict, version: int, check: Callable[[], None]) -> None:
@@ -159,6 +161,9 @@ def prepare_assets(ep: dict, script: dict, check: Callable[[], None],
             progress(None, f"Voix {lang.upper()} : réplique {i + 1}/{len(lines)}")
             text, who = (sh["text"], sh["speaker"]) if sh["text"] else (sh["narration"], "")
             ch = cmap.get(who) or {"name": "Narrateur", "voice": {"pitch": 0.95}}
+            vs = float(style.get("voice_speed") or 1.0)
+            if abs(vs - 1.0) > 0.01:
+                ch = {**ch, "voice": {**(ch.get("voice") or {}), "speed": float((ch.get("voice") or {}).get("speed", 1.0)) * vs}}
             try:
                 path = audio.synthesize_voice(text, ch, vdir / f"{sh['shot_id']}.wav", provider, lang)
             except Exception as e:
@@ -228,17 +233,19 @@ def render_video(ep: dict, script: dict, kind: str, progress: Callable[[float, s
         except Exception:
             pass
     ctx = make_context(ep, W, H, fps, envelopes, lang)
+    ctx.voice_durs = {k: v["duration"] for k, v in manifest.get("voices", {}).items()}
     out_dir = ep_dir(ep["id"])
     stamp = time.strftime("%Y%m%d-%H%M%S")
     wav = out_dir / f"{kind}-{lang}-{stamp}.wav"
     mp4 = out_dir / f"{kind}-{lang}-{stamp}.mp4"
     progress(0.0, f"Mixage audio ({lang.upper()})")
-    audio.mix_episode(plan, ep["series_id"], manifest.get("voices", {}), wav)
+    audio.mix_episode(plan, ep["series_id"], manifest.get("voices", {}), wav, music_db=ctx.style.get("music_db"))
     check()
     n_frames = int(total * fps)
     cmd = [ffmpeg, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
            "-r", str(fps), "-i", "-", "-i", str(wav), "-map", "0:v", "-map", "1:a", "-c:v", "libx264",
-           "-preset", preset, "-crf", str(crf), "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", s["audio_bitrate"],
+           "-preset", preset, "-crf", str(crf), "-pix_fmt", "yuv420p",
+           "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "44100", "-c:a", "aac", "-b:a", s["audio_bitrate"],
            "-movflags", "+faststart", "-t", f"{total:.3f}", str(mp4)]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     t0 = time.monotonic()

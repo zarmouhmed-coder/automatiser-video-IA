@@ -87,6 +87,11 @@ export default function Settings() {
               <option value="fr,en">Français + Anglais</option>
               <option value="fr">Français seulement</option>
             </select></div>
+          <div className="field"><label>Sous-titres</label>
+            <select value={s.caption_style} onChange={(e) => set("caption_style", e.target.value)}>
+              <option value="tiktok">Mot par mot, façon TikTok (recommandé)</option>
+              <option value="classic">Phrase complète dans une boîte</option>
+            </select></div>
           <div className="field"><label>Traduction anglaise</label>
             <select value={s.translation_provider} onChange={(e) => set("translation_provider", e.target.value)}>
               <option value="auto">Automatique (IA configurée, sinon modèle local hors ligne)</option>

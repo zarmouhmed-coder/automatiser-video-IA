@@ -218,9 +218,25 @@ def _render(ctx: JobContext, kind: str) -> None:
         if crit:
             crit["content"] = db.jloads(crit["content"], {})
         rep = report_mod.build(ep, script, sb, renders, crit)
+        rep["originality"] = _originality(ep, renders)
         engine._open_gate(ep, "episode", sb["id"], rep)
     else:
         engine._open_gate(ep, kind, rids[0])
+
+
+def _originality(ep: dict, renders: list[dict]) -> dict | None:
+    from .. import config, inspiration, quality
+
+    insp = inspiration.get(ep.get("inspiration_id"))
+    if not insp or not insp.get("file_path") or not renders:
+        return None
+    ref = config.DATA_DIR / insp["file_path"]
+    if ref.suffix.lower() not in (".mp4", ".mov", ".webm", ".mkv", ".m4v") or not ref.exists():
+        return None
+    try:
+        return quality.originality(config.DATA_DIR / renders[0]["path"], ref)
+    except Exception as e:
+        return {"checked": False, "reason": str(e)}
 
 
 @handler("preview")
@@ -285,3 +301,12 @@ def job_models(ctx: JobContext) -> None:
     if not translate.local_ready():
         translate.download_local(lambda p, m: ctx.progress(p, m))
     ctx.progress(1.0, "Voix et modèle de traduction installés", force=True)
+
+
+@handler("inspiration_analyze")
+def job_inspiration(ctx: JobContext) -> None:
+    from .. import inspiration
+
+    iid = int(ctx.params["inspiration_id"])
+    res = inspiration.analyze(iid, lambda m: ctx.progress(None, m, force=True))
+    ctx.progress(None, f"Inspiration analysée : {res['status']}", force=True)

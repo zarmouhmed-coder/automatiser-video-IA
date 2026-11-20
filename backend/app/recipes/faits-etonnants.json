@@ -1,0 +1,39 @@
+{
+  "schema_version": 3,
+  "recipe_id": "faits-etonnants",
+  "contenu": {
+    "niche": "amazing_facts",
+    "themes": ["science", "animaux", "histoire", "corps humain", "actualité insolite"],
+    "sources_acceptees": ["tendance_x", "tendance_bluesky", "google_trends", "actualite"],
+    "angle": "3 faits vérifiables qui ont l'air faux",
+    "transformation": "partir d'un sujet du jour, en tirer 3 faits sourcés, les reformuler en phrases chocs et ajouter un verdict perso sur le plus fou",
+    "format": "narration",
+    "language": "en",
+    "target_duration_s": [28, 40],
+    "structure": [
+      {"part": "hook", "seconds": [0, 3], "pattern": "affirmation surprenante et vérifiable", "example": "Honey found in Egyptian tombs is still edible."},
+      {"part": "list_item", "seconds": [3, 12]},
+      {"part": "list_item", "seconds": [12, 21]},
+      {"part": "list_item", "seconds": [21, 30]},
+      {"part": "cta", "seconds": [30, 34], "pattern": "which one did you know? + suivre pour la suite"}
+    ],
+    "script_style": {"pov": "narrator", "wpm": 180, "reading_level": "grade_6", "tone": "curieux, rythmé"},
+    "posting": {"hashtags": ["#facts", "#didyouknow", "#learnontiktok"], "best_hours_utc": [14, 18, 23]}
+  },
+  "visuel": {
+    "moteur": "html",
+    "ambiance": "fond sombre violet en dégradé radial qui respire, particules dorées qui montent, une couleur d'accent jaune, emojis en grand comme illustrations",
+    "fond": "anime",
+    "scene_defaut": "mot-clé de la phrase en très gros au centre, apparition élastique",
+    "scenes": {
+      "hook": "gros chiffre (le nombre de faits) qui rebondit, puis le titre qui apparaît quand la voix le dit",
+      "list_item": "badge « FACT #n » en haut, emoji illustratif au centre, et une animation propre au fait déclenchée sur son mot-clé : compteur qui monte, objets qui apparaissent un par un, cartes vrai/faux",
+      "cta": "la question en grand, puis le rappel des emojis des faits"
+    },
+    "rythme": {"changement_s": 2.5, "declencheur": "mots_cles", "zoom_punch": true},
+    "sous_titres": {"style": "word_by_word", "words_on_screen": 2, "position": "center", "use_channel_charter": true},
+    "voix": {"gender": "male", "age": "25-35", "speed": 1.05, "engine_hint": "elevenlabs:TX3LPaxmHKxFdv7VOQHJ"},
+    "audio": {"music_mood": "upbeat curious", "music_db": -20, "sfx": ["pop_on_item"]}
+  },
+  "why_it_works": "Format court de croissance : promesse tenue dès la première seconde, trois faits sourcés, question finale pour les commentaires."
+}

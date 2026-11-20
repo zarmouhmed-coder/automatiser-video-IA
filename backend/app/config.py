@@ -38,6 +38,7 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "tts_provider": "piper",           # piper | espeak | elevenlabs | none
     "languages": "fr,en",              # versions produites pour chaque épisode
     "validation_mode": "episode",      # episode (1 validation expliquée) | detailed (4 validations)
+    "caption_style": "tiktok",         # tiktok (mot par mot) | classic
     "translation_provider": "auto",    # auto | llm | argos
     "elevenlabs_model": "eleven_multilingual_v2",
     "budget_monthly_usd": 20.0,

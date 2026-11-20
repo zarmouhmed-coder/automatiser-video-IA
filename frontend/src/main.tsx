@@ -16,17 +16,11 @@ import Settings from "./pages/Settings";
 import Bible from "./pages/Bible";
 import Inspirations from "./pages/Inspirations";
 
-const NAV = [
-  ["/", "Dashboard"],
-  ["/creation", "Création"],
-  ["/scenarios", "Scénarios"],
-  ["/production", "Production"],
-  ["/bibliotheque", "Bibliothèque"],
-  ["/communaute", "Communauté"],
-  ["/validations", "Validations"],
-  ["/archives", "Archives"],
-  ["/publication", "Publication"],
-  ["/parametres", "Paramètres"],
+const NAV: [string, [string, string, string][]][] = [
+  ["Studio", [["/", "◎", "Accueil"], ["/validations", "✓", "À valider"], ["/scenarios", "✎", "Scénarios"], ["/production", "▶", "Production"]]],
+  ["Univers", [["/bible", "◇", "Séries & bibles"], ["/inspirations", "✦", "Recettes & inspirations"], ["/bibliotheque", "▦", "Bibliothèque"]]],
+  ["Public", [["/publication", "⇪", "Publication"], ["/communaute", "☷", "Communauté & votes"]]],
+  ["Système", [["/archives", "⌂", "Archives"], ["/parametres", "⚙", "Paramètres"]]],
 ];
 
 function Shell() {
@@ -48,19 +42,19 @@ function Shell() {
           </div>
         </div>
         <div className="nav">
-          {NAV.map(([to, label], i) => (
-            <NavLink key={to} to={to} end={to === "/"}>
-              <span className="num">{String(i + 1).padStart(2, "0")}</span>
-              {label}
-              {to === "/validations" && vals && vals.length > 0 && <span className="badge">{vals.length}</span>}
-            </NavLink>
+          <NavLink to="/creation" className="cta">＋ Créer un épisode</NavLink>
+          {NAV.map(([group, items]) => (
+            <div key={group} className="nav-group">
+              <div className="label">{group}</div>
+              {items.map(([to, ico, label]) => (
+                <NavLink key={to} to={to} end={to === "/"}>
+                  <span className="ico">{ico}</span>
+                  {label}
+                  {to === "/validations" && vals && vals.length > 0 && <span className="badge">{vals.length}</span>}
+                </NavLink>
+              ))}
+            </div>
           ))}
-          <NavLink to="/inspirations">
-            <span className="num">✦</span>Inspirations
-          </NavLink>
-          <NavLink to="/bible">
-            <span className="num">◇</span>Bibles des séries
-          </NavLink>
         </div>
         <div className="sidebar-foot">
           {status ? (

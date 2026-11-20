@@ -98,6 +98,8 @@ def analyze_video(path: Path, thumb_out: Path) -> dict[str, Any]:
 
 
 def describe(p: dict[str, Any]) -> str:
+    if p.get("recipe_summary"):
+        return p["recipe_summary"]
     parts = []
     if p.get("avg_shot_s"):
         pace = "très rapide" if p["avg_shot_s"] < 1.5 else "rapide" if p["avg_shot_s"] < 2.5 else \
@@ -136,47 +138,19 @@ def _finish(iid: int, profile: dict, status: str = "ready", error: str | None = 
     return get(iid)
 
 
-def add_tiktok(url: str, series_id: str | None = None, notes: str = "") -> dict:
-    import httpx
+def _enqueue(iid: int) -> None:
+    db.execute("UPDATE inspirations SET status='analyzing', error=NULL WHERE id=?", (iid,))
+    db.execute("INSERT INTO jobs(episode_id, series_id, kind, heavy, status, params, created_at) VALUES(?,?,?,?,?,?,?)",
+               (None, None, "inspiration_analyze", 0, "queued", db.jdumps({"inspiration_id": iid}), db.now()))
 
+
+def add_tiktok(url: str, series_id: str | None = None, notes: str = "") -> dict:
     url = url.strip()
     if not TIKTOK_RX.match(url):
         raise StudioError("Lien TikTok invalide (il doit commencer par https://www.tiktok.com/ ou https://vm.tiktok.com/).")
     iid = _save(series_id, "tiktok", url, "", "", notes)
-    profile: dict[str, Any] = {}
-    try:
-        r = httpx.get("https://www.tiktok.com/oembed", params={"url": url}, timeout=20, follow_redirects=True)
-        if r.status_code != 200:
-            raise RuntimeError(f"TikTok a répondu {r.status_code}")
-        meta = r.json()
-        db.execute("UPDATE inspirations SET title=?, author=? WHERE id=?",
-                   (meta.get("title", "")[:300], meta.get("author_name", ""), iid))
-        thumb_rel = None
-        if meta.get("thumbnail_url"):
-            try:
-                t = httpx.get(meta["thumbnail_url"], timeout=20, follow_redirects=True)
-                if t.status_code == 200:
-                    p = _dir(iid) / "miniature.jpg"
-                    p.write_bytes(t.content)
-                    Image.open(p).convert("RGB").save(p, quality=88)
-                    profile = analyze_image(p)
-                    thumb_rel = p.relative_to(config.DATA_DIR).as_posix()
-            except Exception as e:
-                profile["thumbnail_error"] = str(e)
-        if meta.get("embed_product_id"):
-            profile["embed_url"] = f"https://www.tiktok.com/player/v1/{meta['embed_product_id']}"
-        if thumb_rel:
-            profile["note"] = ("Palette tirée de la miniature. Pour le rythme et le mouvement, importez aussi le "
-                               "fichier vidéo (TikTok n'autorise pas son téléchargement automatique).")
-            return _finish(iid, profile, "partial", thumbnail_path=thumb_rel)
-        profile["note"] = ("TikTok n'a fourni ni miniature ni titre pour ce lien (vidéo privée, supprimée ou ancienne ?). "
-                           "Rien à analyser : importez la vidéo ou une capture d'écran pour copier son style.")
-        return _finish(iid, profile, "error", "Aucune donnée de style disponible pour ce lien.",
-                       thumbnail_path=None)
-    except Exception as e:
-        log("inspiration.error", f"Lien TikTok non lu : {e}", level="warning")
-        return _finish(iid, profile, "error", f"Impossible de lire le lien TikTok : {e}. "
-                       "Vérifiez la connexion, ou importez la vidéo / une capture.")
+    _enqueue(iid)
+    return get(iid)
 
 
 def add_file(src: Path, filename: str, series_id: str | None = None, notes: str = "", url: str = "") -> dict:
@@ -187,16 +161,72 @@ def add_file(src: Path, filename: str, series_id: str | None = None, notes: str 
     iid = _save(series_id, kind, url, Path(filename).stem[:120], "", notes)
     dest = _dir(iid) / f"reference{ext}"
     shutil.copy2(src, dest)
-    rel = dest.relative_to(config.DATA_DIR).as_posix()
+    db.execute("UPDATE inspirations SET file_path=? WHERE id=?", (dest.relative_to(config.DATA_DIR).as_posix(), iid))
+    _enqueue(iid)
+    return get(iid)
+
+
+def analyze(iid: int, progress=lambda m: None) -> dict:
+    """Analyse complète (tâche de fond) : mesures, transcription, recette."""
+    from . import recipes
+
+    insp = get(iid)
+    if not insp:
+        raise StudioError("Inspiration introuvable.")
+    meta: dict[str, Any] = {}
+    video: Path | None = (config.DATA_DIR / insp["file_path"]) if insp.get("file_path") else None
+    profile: dict[str, Any] = {}
+    if insp["kind"] == "tiktok":
+        import httpx
+        progress("Lecture du lien TikTok…")
+        try:
+            r = httpx.get("https://www.tiktok.com/oembed", params={"url": insp["url"]}, timeout=20, follow_redirects=True)
+            m = r.json() if r.status_code == 200 else {}
+        except Exception:
+            m = {}
+        meta = {"title": m.get("title", ""), "author": m.get("author_name", "")}
+        if m.get("embed_product_id"):
+            profile["embed_url"] = f"https://www.tiktok.com/player/v1/{m['embed_product_id']}"
+        db.execute("UPDATE inspirations SET title=?, author=? WHERE id=?", (meta["title"][:300], meta["author"], iid))
+        progress("Téléchargement de la vidéo (yt-dlp)…")
+        try:
+            dl = recipes.download(insp["url"], _dir(iid))
+            video = dl["file"]
+            meta.update({k: dl[k] for k in ("title", "author", "duration", "views", "caption") if dl.get(k)})
+            db.execute("UPDATE inspirations SET file_path=?, title=?, author=? WHERE id=?",
+                       (video.relative_to(config.DATA_DIR).as_posix(), (meta.get("title") or "")[:300],
+                        meta.get("author", ""), iid))
+        except recipes.DownloadError as e:
+            profile["note"] = str(e)
+            thumb_rel = None
+            if m.get("thumbnail_url"):
+                try:
+                    t = httpx.get(m["thumbnail_url"], timeout=20, follow_redirects=True)
+                    if t.status_code == 200:
+                        p = _dir(iid) / "miniature.jpg"
+                        p.write_bytes(t.content)
+                        Image.open(p).convert("RGB").save(p, quality=88)
+                        profile.update(analyze_image(p))
+                        thumb_rel = p.relative_to(config.DATA_DIR).as_posix()
+                except Exception:
+                    pass
+            if thumb_rel:
+                return _finish(iid, profile, "partial", thumbnail_path=thumb_rel)
+            return _finish(iid, profile, "error", "Vidéo non récupérable automatiquement : importez le fichier "
+                           "(bouton « Enregistrer la vidéo » de TikTok) pour une analyse complète.")
+    if video is None:
+        raise StudioError("Aucun fichier à analyser.")
     try:
-        if kind == "video":
-            thumb = _dir(iid) / "miniature.jpg"
-            profile = analyze_video(dest, thumb)
-            return _finish(iid, profile, file_path=rel, thumbnail_path=thumb.relative_to(config.DATA_DIR).as_posix())
-        profile = analyze_image(dest)
-        return _finish(iid, profile, "partial", file_path=rel, thumbnail_path=rel)
+        if video.suffix.lower() in IMAGE_EXT:
+            profile.update(analyze_image(video))
+            return _finish(iid, profile, "partial", thumbnail_path=video.relative_to(config.DATA_DIR).as_posix())
+        progress("Mesure du montage, du mouvement et des couleurs…")
+        thumb = _dir(iid) / "miniature.jpg"
+        profile.update(analyze_video(video, thumb))
+        profile = recipes.enrich(profile, video, meta, progress)
+        return _finish(iid, profile, thumbnail_path=thumb.relative_to(config.DATA_DIR).as_posix())
     except StudioError as e:
-        return _finish(iid, {}, "error", e.message, file_path=rel)
+        return _finish(iid, profile, "error", e.message)
 
 
 def get(iid: int | None) -> dict | None:
@@ -233,6 +263,16 @@ def applied_summary(profile: dict) -> list[str]:
         out.append(f"Durée des plans sans dialogue rapprochée de {profile['avg_shot_s']} s.")
     if profile.get("motion") is not None:
         out.append(f"Intensité des mouvements de caméra ×{camera_energy(profile):.2f}.")
+    if profile.get("caption_style") == "word_by_word":
+        out.append(f"Sous-titres mot par mot ({profile.get('words_on_screen', 3)} mots à l'écran, mot prononcé en couleur).")
+    if profile.get("zoom_punch"):
+        out.append("Zooms « punch » sur les plans forts.")
+    if profile.get("voice_speed") and abs(profile["voice_speed"] - 1) > 0.02:
+        out.append(f"Débit des voix ×{profile['voice_speed']:.2f}.")
+    if profile.get("music_db"):
+        out.append(f"Musique à {profile['music_db']:.0f} dB sous les voix.")
+    if profile.get("hook_pattern"):
+        out.append(f"Accroche demandée aux scénaristes : {profile['hook_pattern']}.")
     if profile.get("palette"):
         out.append(f"Étalonnage vers la palette {', '.join(profile['palette'][:4])} ; couleur d'accent {profile['accent']}.")
     return out

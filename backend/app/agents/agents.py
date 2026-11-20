@@ -65,6 +65,13 @@ def _style_hint(ep: dict) -> str:
     hint = f"Inspiration de style choisie par le réalisateur : {st.get('description', '')}."
     if st.get("avg_shot_s"):
         hint += f" Vise des plans d'environ {st['avg_shot_s']} s."
+    if st.get("hook_pattern"):
+        hint += f" Accroche (2 premières secondes) selon ce motif : {st['hook_pattern']}."
+    if st.get("structure"):
+        hint += " Structure à suivre : " + " → ".join(
+            f"{p.get('part')}" + (f" ({p['pattern']})" if p.get("pattern") else "") for p in st["structure"]) + "."
+    if st.get("tone"):
+        hint += f" Ton : {st['tone']}."
     return hint + " (Ne reprends aucun contenu de la référence : seulement le rythme et l'énergie.)\n"
 
 
@@ -116,6 +123,28 @@ TENSION_WORDS = {
 }
 STOP = set("dans avec pour plus mais tout tous cette comme elle elles nous vous leur leurs sans sous être avoir "
            "était sont faire fait encore jamais toujours quelque chose rien".split())
+
+
+def hook_score(script: dict) -> dict[str, Any]:
+    """Note de l'accroche (idée TrendForge) : ce qui se passe dans les ~3 premières secondes."""
+    first, t = [], 0.0
+    for sc in script["scenes"]:
+        for sh in sc["shots"]:
+            if t < 3.0:
+                first.append(sh)
+            t += sh["duration"]
+    txt = " ".join((sh["text"] + " " + sh["caption"] + " " + sh["narration"]) for sh in first)
+    checks = {
+        "texte ou réplique visible": bool(txt.strip()),
+        "question, chiffre ou mot fort": bool(re.search(r"\?|\d|!|jamais|personne|mort|secret|interdit|dernier", txt, re.I)),
+        "effet sonore d'ouverture": any(sh["sfx"] for sh in first),
+        "personnage ou mouvement de caméra": any(sh["characters"] or sh["camera"] in ("push_in", "shake", "pan_left",
+                                                                                    "pan_right") for sh in first),
+        "premier plan court (≤ 3 s)": bool(first) and first[0]["duration"] <= 3.0,
+    }
+    score = round(sum(checks.values()) * 2)
+    return {"score": score, "checks": checks, "missing": [k for k, v in checks.items() if not v],
+            "text": txt.strip()[:160]}
 
 
 def heuristic_critique(ep: dict, script: dict) -> dict[str, Any]:
@@ -212,13 +241,19 @@ def heuristic_critique(ep: dict, script: dict) -> dict[str, Any]:
                 add(None, None, "lisibilite", "moyenne", f"Option de vote trop longue : « {o} ».",
                     "Moins de 25 caractères par option.")
 
+    hook = hook_score(script)
+    if hook["score"] < 6:
+        add(shots[0][0] if shots else None, shots[0][1] if shots else None, "tension", "moyenne",
+            f"Accroche faible ({hook['score']}/10) : {', '.join(hook['missing'])}.",
+            "Les 2 premières secondes doivent poser une question, un chiffre ou une image anormale, avec du son.")
     weights = {"faible": 4, "moyenne": 9, "forte": 18}
     axes = {"dialogues": ["dialogue_plat"], "coherence": ["incoherence", "canon"], "rythme": ["rythme"],
             "repetitions": ["repetition"], "tension": ["tension"], "lisibilite_mobile": ["lisibilite"]}
     scores = {a: max(0, 100 - sum(weights[i["severity"]] for i in issues if i["type"] in t)) for a, t in axes.items()}
     summary = (f"{len(issues)} point(s) relevé(s) par l'analyse locale. Durée {total:.0f}s, "
                f"{len(shots)} plans, fin : {script['ending']['type']}.")
-    return {"summary": summary, "scores": scores, "issues": issues}
+    scores["accroche"] = hook["score"] * 10
+    return {"summary": summary, "scores": scores, "issues": issues, "hook": hook}
 
 
 def critique(ep: dict, script: dict) -> tuple[dict, dict]:

@@ -1,0 +1,41 @@
+{
+  "schema_version": 3,
+  "recipe_id": "top-5",
+  "contenu": {
+    "niche": "top_lists_trending",
+    "themes": ["tech", "pop culture", "sport", "produits", "actualité du jour"],
+    "sources_acceptees": ["tendance_x", "tendance_bluesky", "google_trends", "actualite"],
+    "angle": "5 choses que personne ne dit sur le sujet dont tout le monde parle aujourd'hui",
+    "transformation": "prendre une tendance de moins de 48 h, tirer 5 points des 2-3 sources de la fiche, les classer du moins au plus surprenant et donner un avis sur le n° 1",
+    "format": "narration",
+    "language": "en",
+    "target_duration_s": [30, 44],
+    "structure": [
+      {"part": "hook", "seconds": [0, 3], "pattern": "promesse chiffrée liée à une tendance du jour", "example": "Five things nobody tells you about the new iPhone."},
+      {"part": "list_item", "seconds": [3, 10]},
+      {"part": "list_item", "seconds": [10, 17]},
+      {"part": "list_item", "seconds": [17, 24]},
+      {"part": "list_item", "seconds": [24, 31]},
+      {"part": "list_item", "seconds": [31, 38]},
+      {"part": "cta", "seconds": [38, 42], "pattern": "lequel t'a surpris ?"}
+    ],
+    "script_style": {"pov": "2nd_person", "wpm": 185, "reading_level": "grade_6", "tone": "énergique"},
+    "posting": {"hashtags": ["#top5", "#trending", "#fyp"], "best_hours_utc": [14, 18, 23]}
+  },
+  "visuel": {
+    "moteur": "html",
+    "ambiance": "fond clair à formes géométriques qui glissent, couleurs vives, gros numéros en contour",
+    "fond": "anime",
+    "scene_defaut": "carte numérotée qui entre de côté avec un mot-clé et une icône",
+    "scenes": {
+      "hook": "le chiffre 5 géant qui se remplit de couleur, sujet du jour écrit dessous",
+      "list_item": "compte à rebours : numéro géant qui tombe, carte avec mot-clé + emoji, liste des numéros déjà vus qui se coche sur le côté",
+      "cta": "les 5 cartes en mosaïque, la question au-dessus"
+    },
+    "rythme": {"changement_s": 2.0, "declencheur": "mots_cles", "zoom_punch": true},
+    "sous_titres": {"style": "word_by_word", "words_on_screen": 2, "position": "center", "use_channel_charter": true},
+    "voix": {"gender": "female", "age": "20-30", "speed": 1.1, "engine_hint": "elevenlabs:FGY2WhTYpPnrIDTdsKH5"},
+    "audio": {"music_mood": "energetic electronic", "music_db": -20, "sfx": ["swoosh_on_item"]}
+  },
+  "why_it_works": "Accroché sur un sujet tendance du jour ; le compte à rebours garde l'attention jusqu'au n°1 ; format court pour la phase de croissance."
+}

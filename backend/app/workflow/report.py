@@ -75,14 +75,14 @@ def build(ep: dict, script: dict, storyboard: dict, renders: list[dict], critiqu
         "canon_proposals": script.get("canon_proposals", []),
         "new_characters": script.get("new_characters", []),
         "critique": {"summary": crit.get("summary", ""), "scores": crit.get("scores", {}),
-                     "issues": crit.get("issues", []), "source": crit.get("source", "")},
+                     "issues": crit.get("issues", []), "source": crit.get("source", ""), "hook": crit.get("hook")},
         "voices": {"provider": manifest.get("tts_provider"), "requested": manifest.get("requested_provider"),
                    "warnings": manifest.get("warnings", []),
                    "langs": {k: {"status": v.get("voice_status"), "warnings": v.get("warnings", [])}
                              for k, v in manifest.get("langs", {}).items()},
                    "cast": [r for r in voices.voice_table([cmap[c] for c in used if c in cmap])]},
         "translation": script.get("i18n_meta", {}),
-        "inspiration": {"title": insp["title"] if insp else None, "url": insp["url"] if insp else None,
+        "inspiration": {"kind": insp["kind"], "title": insp["title"] if insp else None, "url": insp["url"] if insp else None,
                         "description": style.get("description", ""), "applied": inspiration.applied_summary(style)}
         if insp else None,
         "renders": [{"lang": r["lang"], "path": r["path"], "duration_s": r["duration_s"], "size_bytes": r["size_bytes"],

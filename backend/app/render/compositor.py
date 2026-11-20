@@ -45,6 +45,8 @@ class RenderContext:
     lang: str = "fr"
     style: dict = field(default_factory=dict)  # profil d'inspiration (palette, contraste, mouvement…)
     energy: float = 1.0
+    voice_durs: dict = field(default_factory=dict)  # shot_id -> durée réelle de la voix
+    caption_style: str = "word_by_word"           # word_by_word (TikTok) | phrase
 
     @property
     def k(self) -> float:
@@ -194,6 +196,71 @@ def _wrap(text: str, f, max_w: float, d: ImageDraw.ImageDraw) -> list[str]:
     return lines
 
 
+def word_times(text: str, dur: float) -> list[tuple[str, float]]:
+    """Heure de début estimée de chaque mot (poids = longueur + pauses de ponctuation)."""
+    words = text.split()
+    weights = [len(w.strip(".,!?…;:«»\"'")) + 2 + (4 if w[-1:] in ".!?…" else 2 if w[-1:] in ",;:" else 0)
+               for w in words]
+    total = max(1, sum(weights))
+    out, acc = [], 0.0
+    for w, wt in zip(words, weights):
+        out.append((w, dur * acc / total))
+        acc += wt
+    return out
+
+
+def draw_words(img: Image.Image, ctx: RenderContext, speaker: str, text: str, lt: float, dur: float,
+               narration: bool = False) -> None:
+    """Sous-titres mot par mot façon TikTok : petit groupe de mots, mot prononcé en couleur + « pop »."""
+    W, H, k = img.width, img.height, ctx.k
+    times = word_times(text, dur)
+    if not times:
+        return
+    n = max(1, int(ctx.style.get("words_on_screen", 3) or 3))
+    cur = max(0, sum(1 for _, t0 in times if t0 <= lt) - 1) if lt >= 0 else 0
+    g = cur // n
+    group = times[g * n:(g + 1) * n]
+    accent = hex_rgb(ctx.accent)
+    d = ImageDraw.Draw(img, "RGBA")
+    base = int(86 * k)
+    f = font(base)
+    words = [w.upper() for w, _ in group]
+    space = d.textlength(" ", font=f)
+    widths = [d.textlength(w, font=f) for w in words]
+    lines, line, lw = [], [], 0.0
+    for i, w in enumerate(widths):
+        if line and lw + space + w > W * 0.84:
+            lines.append(line)
+            line, lw = [], 0.0
+        line.append(i)
+        lw += (space if len(line) > 1 else 0) + w
+    lines.append(line)
+    y = H * (0.765 if ctx.style.get("caption_position", "center") != "bottom" else 0.8)
+    if speaker:
+        nf = font(int(32 * k))
+        tw = d.textlength(speaker, font=nf)
+        d.rounded_rectangle(((W - tw) / 2 - 18 * k, y - 52 * k, (W + tw) / 2 + 18 * k, y - 8 * k), radius=int(14 * k),
+                            fill=accent + (235,))
+        d.text(((W - tw) / 2, y - 47 * k), speaker, font=nf, fill=(8, 10, 14))
+    for ln in lines:
+        total_w = sum(widths[i] for i in ln) + space * (len(ln) - 1)
+        x = (W - total_w) / 2
+        for i in ln:
+            idx = g * n + i
+            active = idx == cur and lt >= 0
+            since = lt - times[idx][1]
+            col = accent if active else ((235, 225, 200) if narration else (255, 255, 255))
+            if active and 0 <= since < 0.12:  # pop à l'apparition du mot
+                pf = font(int(base * (1.12 - since)))
+                dy = (pf.size - base) * 0.5
+                d.text((x - (d.textlength(words[i], font=pf) - widths[i]) / 2, y - dy), words[i], font=pf, fill=col,
+                       stroke_width=max(2, int(7 * k)), stroke_fill=(0, 0, 0))
+            else:
+                d.text((x, y), words[i], font=f, fill=col, stroke_width=max(2, int(7 * k)), stroke_fill=(0, 0, 0))
+            x += widths[i] + space
+        y += base * 1.12
+
+
 def draw_subtitle(img: Image.Image, ctx: RenderContext, speaker: str, text: str, progress: float,
                   narration: bool = False) -> None:
     """Sous-titres mobiles : boîte arrondie, nom du personnage, mots déjà prononcés en surbrillance."""
@@ -335,6 +402,10 @@ def render_frame(ctx: RenderContext, shot: dict, t: float, frame_no: int, t_glob
     """t : avancement dans le plan (0→1)."""
     W, H = ctx.width, ctx.height
     zoom, ox, oy = camera(shot, t, frame_no, ctx.energy)
+    if ctx.style.get("zoom_punch") and shot["kind"] in ("action", "technique", "reveal", "title", "system"):
+        lt0 = t * shot["duration"]
+        if lt0 < 0.3:
+            zoom *= 1 + 0.1 * (1 - lt0 / 0.3) ** 2
     far, mid, near = backgrounds.layers(shot["location"], W, H)
     frame = _place(far, W, H, zoom, ox, oy, DEPTH["far"])
     frame.alpha_composite(_place(mid, W, H, zoom, ox, oy, DEPTH["mid"]))
@@ -399,9 +470,12 @@ def render_frame(ctx: RenderContext, shot: dict, t: float, frame_no: int, t_glob
         draw_caption(out, ctx, shot, t)
         txt = shot.get("text") or shot.get("narration")
         if txt:
-            speak_dur = max(0.8, min(shot["duration"] - 0.3, len(txt) / 14))
-            prog = max(0.0, min(1.0, (local_time - 0.15) / speak_dur))
-            draw_subtitle(out, ctx, shot.get("speaker_name", "") if shot.get("text") else "", txt, prog,
-                          narration=not shot.get("text"))
+            speak_dur = ctx.voice_durs.get(shot["shot_id"]) or max(0.8, min(shot["duration"] - 0.3, len(txt) / 14))
+            name = shot.get("speaker_name", "") if shot.get("text") else ""
+            if ctx.caption_style == "word_by_word":
+                draw_words(out, ctx, name, txt, local_time - 0.15, speak_dur, narration=not shot.get("text"))
+            else:
+                prog = max(0.0, min(1.0, (local_time - 0.15) / speak_dur))
+                draw_subtitle(out, ctx, name, txt, prog, narration=not shot.get("text"))
         draw_hud(out, ctx, t_global)
     return out

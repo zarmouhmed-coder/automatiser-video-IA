@@ -21,6 +21,8 @@ def startup(start_worker: bool = True) -> None:
     applied = db.migrate()
     seeded = seed.seed()
     seed.ensure_voice_genders()
+    from . import recipes
+    recipes.seed_presets()
     if applied:
         log("db.migrate", f"Migrations appliquées : {', '.join(applied)}")
     today = datetime.now().strftime("%Y%m%d")

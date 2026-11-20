@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "recipe_id": "calm-nature-psychology-fact-two-line-reveal",
+  "source": {
+    "url": "https://www.tiktok.com/@factsdaily/video/7282871287368699141",
+    "views": 229,
+    "duration_s": 6.0,
+    "language": "en"
+  },
+  "contenu": {
+    "niche": "psychology facts / relationship insights",
+    "themes": [
+      "psychology facts",
+      "gender stereotypes",
+      "emotional vulnerability",
+      "relationships",
+      "self-awareness"
+    ],
+    "sources_acceptees": [
+      "forum",
+      "tendance_x",
+      "tendance_bluesky",
+      "google_trends",
+      "actualite"
+    ],
+    "angle": "A short, gentle psychology fact that challenges a common stereotype. A setup line ending in 'but...' creates a pause, then a soft emotional reveal that viewers want to relate to, save or share.",
+    "transformation": "Take a real topic or story (a forum confession, a trending debate, a news item about emotions or relationships) and reduce it to one universal, comforting claim about a group of people. Drop names, facts and specifics, and write it as a two-part sentence: a stereotype or outward behavior, then a hidden inner truth. Rephrase everything in fresh wording and pair it with a calm nature background.",
+    "format": "texte_ecran",
+    "language": "en",
+    "target_duration_s": [
+      21.0,
+      24.0
+    ],
+    "structure": [
+      {
+        "part": "hook",
+        "seconds": [
+          0.0,
+          3.0
+        ],
+        "pattern": "A small label card ('Fact' tag) stays on screen with the opening half of a sentence, a stereotype or outward behavior, ending in 'but...' to force curiosity.",
+        "example": "Women may act like they're fine, but...",
+        "beats": 1
+      },
+      {
+        "part": "payoff",
+        "seconds": [
+          3.0,
+          6.0
+        ],
+        "pattern": "The second half of the sentence appears alone as a soft emotional reveal that reframes the stereotype with a vulnerable truth.",
+        "example": "they carry quiet worries they rarely say out loud.",
+        "beats": 1
+      },
+      {
+        "part": "cta",
+        "seconds": [
+          6.0,
+          8.0
+        ],
+        "pattern": "An optional soft end-card that holds the payoff, inviting a like, share or follow, with no hard sell.",
+        "example": "Share this with someone who needs to hear it.",
+        "beats": 1
+      }
+    ],
+    "script_style": {
+      "pov": "3rd_person",
+      "wpm": 140,
+      "reading_level": "grade 5, simple everyday words",
+      "tone": "soft, empathetic, reassuring, quietly validating"
+    },
+    "posting": {
+      "hashtags": [
+        "#psychologyfacts",
+        "#fyp",
+        "#relationships",
+        "#deepthoughts",
+        "#viral"
+      ],
+      "best_hours_utc": []
+    }
+  },
+  "visuel": {
+    "moteur": "html",
+    "ambiance": "serene, meditative, soft natural light, a peaceful forest stream feel",
+    "fond": "anime",
+    "scene_defaut": "Soft green forest and stream gradient background with a gentle slow drift, light vignette, a black rectangular label card at the top center reading 'Fact' in an elegant white serif, and centered white rounded sans-serif subtitles with a subtle shadow in the middle of the screen.",
+    "scenes": {
+      "hook": "Dark green-blue gradient with slow-moving blurred light streaks suggesting flowing water, plus a slight slow zoom-in. The black label card at the top holds a white serif title. The setup line appears centered in two lines of white bold rounded text with a soft fade-in, ending in 'but...' with the ellipsis pulsing gently.",
+      "payoff": "Same background keeps drifting. The top label card stays put. The first line fades out and the reveal text fades in centered, in three short lines, with a small heart emoji gently pulsing beside or beneath it. A subtle light shimmer sweeps across the background as the line lands.",
+      "cta": "Background slowly dims slightly. The reveal text stays on screen while a small soft line like 'Follow for more facts' fades in near the bottom third with a tiny bounce."
+    },
+    "rythme": {
+      "changement_s": 6.0,
+      "declencheur": "mots_cles",
+      "zoom_punch": false
+    },
+    "sous_titres": {
+      "style": "word_by_word",
+      "words_on_screen": 6,
+      "position": "center",
+      "use_channel_charter": true
+    },
+    "voix": {
+      "gender": "female",
+      "age": "adult 25-35",
+      "speed": 0.95,
+      "engine_hint": "elevenlabs:FGY2WhTYpPnrIDTdsKH5"
+    },
+    "audio": {
+      "music_mood": "soft ambient piano with gentle nature sounds of flowing water, slow and calming around 100 bpm",
+      "music_db": -16.0,
+      "sfx": [
+        "soft water flow ambience",
+        "gentle chime on reveal",
+        "light whoosh on text change",
+        "subtle heartbeat thump on emotional line"
+      ]
+    }
+  },
+  "why_it_works": "One calm shot and two readable lines make it easy to finish and rewatch. The 'but...' creates a small curiosity gap, and the reveal validates an emotion people relate to, which encourages saves, shares and comments. The soothing nature backdrop adds emotional weight, and the format is easy to repeat across many stereotype-versus-hidden-truth topics.",
+  "extraite_le": "2026-11-20T09:07:24+00:00",
+  "cout_extraction_usd": 0.0266
+}

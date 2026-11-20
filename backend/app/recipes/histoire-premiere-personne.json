@@ -1,0 +1,41 @@
+{
+  "schema_version": 3,
+  "recipe_id": "histoire-premiere-personne",
+  "contenu": {
+    "niche": "relationship_drama_story",
+    "themes": ["famille", "couple", "mariage", "colocation", "travail", "petty revenge"],
+    "sources_acceptees": ["forum"],
+    "angle": "une injustice vécue racontée à la première personne, avec un retournement qui donne raison au narrateur",
+    "transformation": "réduire le post à une fiche situation, changer prénoms, lieu, métier et au moins 2 détails, ajouter un rebondissement ou un verdict propre ; ne jamais dire que l'histoire est vraie",
+    "format": "narration",
+    "language": "en",
+    "target_duration_s": [65, 85],
+    "structure": [
+      {"part": "hook", "seconds": [0, 3], "pattern": "conflit + détail concret, question implicite", "example": "My sister banned me from her wedding over a cake."},
+      {"part": "setup", "seconds": [3, 18]},
+      {"part": "escalation", "seconds": [18, 52], "beats": 3},
+      {"part": "twist", "seconds": [52, 66]},
+      {"part": "cta", "seconds": [66, 75], "pattern": "verdict demandé au public : who's wrong here?"}
+    ],
+    "script_style": {"pov": "1st_person", "wpm": 175, "reading_level": "grade_6", "tone": "indigné puis satisfait"},
+    "posting": {"hashtags": ["#storytime", "#relationships", "#drama"], "best_hours_utc": [14, 18, 23]}
+  },
+  "visuel": {
+    "moteur": "html",
+    "ambiance": "interface de messagerie stylisée sur fond pastel animé ; bulles de texte, avatars en initiales, réactions emoji ; aucune ressemblance avec une vraie appli ni avec Reddit",
+    "fond": "anime",
+    "scene_defaut": "bulle de message qui apparaît avec la phrase clé, indicateur « en train d'écrire » juste avant",
+    "scenes": {
+      "hook": "titre en carte blanche penchée, mot du conflit surligné en rouge",
+      "setup": "présentation des personnages : avatars en initiales qui glissent avec leur rôle (« my sister », « me »)",
+      "escalation": "bulles qui s'empilent de plus en plus vite, jauge de tension qui monte d'un cran à chaque étape",
+      "twist": "écran qui se fige, flash, la phrase du retournement en grand",
+      "cta": "deux boutons de vote « NTA / YTA » qui se remplissent"
+    },
+    "rythme": {"changement_s": 4.0, "declencheur": "mots_cles", "zoom_punch": true},
+    "sous_titres": {"style": "word_by_word", "words_on_screen": 2, "position": "center", "use_channel_charter": true},
+    "voix": {"gender": "female", "age": "25-35", "speed": 1.05, "engine_hint": "elevenlabs:cgSgspJ2msm6clMCkdW9"},
+    "audio": {"music_mood": "suspense lo-fi", "music_db": -22, "sfx": ["whoosh_on_cut", "ding_on_twist"]}
+  },
+  "why_it_works": "Conflit posé en 3 s, trois escalades qui montent l'injustice, rebondissement aux trois quarts, verdict demandé pour faire commenter."
+}

@@ -1,0 +1,175 @@
+{
+  "schema_version": 3,
+  "recipe_id": "numbered-news-facts-verdict-explainer",
+  "source": {
+    "duration_s": 40.067,
+    "language": "en"
+  },
+  "contenu": {
+    "niche": "news explainers",
+    "themes": [
+      "earthquakes",
+      "natural events",
+      "trending news",
+      "science in the news",
+      "weather and disasters"
+    ],
+    "sources_acceptees": [
+      "actualite",
+      "google_trends",
+      "tendance_x",
+      "tendance_bluesky"
+    ],
+    "angle": "A trending news event is turned into a quick numbered rundown of 3 facts, a myth-busting explanation, a personal verdict on the most surprising one, and a question for the audience.",
+    "transformation": "Pick a real trending news cluster with 2-3 related events. Open with a curious why-question about the most surprising one. Give each event as a numbered fact with one key number and one place. Add a one-line plain-language explanation that clears up a confusing detail. Link the events with a common theme, pick your own most surprising item, then ask which one the viewer saw first. Use fresh wording and your own verdict, never the source's phrasing.",
+    "format": "narration",
+    "language": "en",
+    "target_duration_s": [
+      21.0,
+      45.0
+    ],
+    "structure": [
+      {
+        "part": "hook",
+        "seconds": [
+          0.0,
+          3.0
+        ],
+        "pattern": "Why-question about the odd or surprising side of a news event",
+        "example": "Why did a storm in one country knock out power in its neighbor too?",
+        "beats": 1
+      },
+      {
+        "part": "setup",
+        "seconds": [
+          3.5,
+          9.5
+        ],
+        "pattern": "Fact #1: 'Reports say' plus the key number, place and the surprising reach",
+        "example": "Reports say a magnitude 6.1 tremor hit Chile, and people felt it across the mountains.",
+        "beats": 2
+      },
+      {
+        "part": "twist",
+        "seconds": [
+          9.8,
+          14.0
+        ],
+        "pattern": "Short explanation that makes the odd claim make sense",
+        "example": "It sounds strange, but waves travel through rock, not along maps.",
+        "beats": 1
+      },
+      {
+        "part": "list_item",
+        "seconds": [
+          14.7,
+          20.0
+        ],
+        "pattern": "Fact #2: 'Meanwhile' plus number, place and the trending angle",
+        "example": "Meanwhile, a 4.9 tremor in Japan became a top search overnight.",
+        "beats": 1
+      },
+      {
+        "part": "list_item",
+        "seconds": [
+          20.6,
+          24.5
+        ],
+        "pattern": "Fact #3: place plus number with a short punchy verb",
+        "example": "Near Greece, a magnitude 5.5 quake rattled the coast.",
+        "beats": 1
+      },
+      {
+        "part": "escalation",
+        "seconds": [
+          24.9,
+          29.0
+        ],
+        "pattern": "Tie the facts together with a common theme in one line",
+        "example": "Three places, one lesson. The planet never really rests.",
+        "beats": 1
+      },
+      {
+        "part": "payoff",
+        "seconds": [
+          29.7,
+          35.5
+        ],
+        "pattern": "'My verdict?' plus the most surprising item and why",
+        "example": "My verdict? The first one is the wildest because the shaking ignored a border.",
+        "beats": 1
+      },
+      {
+        "part": "cta",
+        "seconds": [
+          35.9,
+          39.5
+        ],
+        "pattern": "Audience question followed by a follow-for-next-fact line",
+        "example": "Which one did you hear about first? Follow for the next fact.",
+        "beats": 1
+      }
+    ],
+    "script_style": {
+      "pov": "narrator",
+      "wpm": 155,
+      "reading_level": "general audience, simple clear sentences",
+      "tone": "calm, curious, informative with a light conversational verdict"
+    },
+    "posting": {
+      "hashtags": [
+        "#news",
+        "#didyouknow",
+        "#facts",
+        "#explained",
+        "#trending"
+      ],
+      "best_hours_utc": []
+    }
+  },
+  "visuel": {
+    "moteur": "html",
+    "ambiance": "Deep purple radial-gradient background with a soft glow in the center and slowly drifting golden sparkle particles. Bold yellow and white sans-serif text with a soft shadow.",
+    "fond": "anime",
+    "scene_defaut": "Dark purple vignette background with drifting small golden dots. A yellow rounded pill badge at the top holds the fact number. A big emoji or icon sits in the upper middle, and large bold word-by-word captions sit in the lower middle.",
+    "scenes": {
+      "hook": "Large question text in white with yellow keywords pops in on the purple sparkle background, with a small topic emoji or flag icons beside it. Gentle scale-in, then a hold.",
+      "setup": "A yellow pill badge reading FACT #1 slides in at the top. Below it a flat newspaper icon with a globe floats and bobs gently. Yellow uppercase captions appear word by word near the lower middle. Keywords like REPORTS or the number pop in.",
+      "twist": "The badge stays. A thinking-face emoji replaces the icon with a small wobble. Captions pop in word by word, alternating white and yellow for emphasis.",
+      "list_item": "The badge changes to FACT #2. A small white spaced-caps label MAGNITUDE sits above a huge yellow number that counts up or punches in. A yellow jagged seismic waveform line runs horizontally under it and shimmers. A small caption repeats the number at the bottom.",
+      "escalation": "The badge changes to FACT #3. The same number-and-waveform layout, with a new big number. A row beneath shows an emoji, a flag and the place name in white bold text. Captions pop in word by word.",
+      "payoff": "A scales-of-justice emoji and the title MY VERDICT in white and yellow pop in at the top with a bounce. The lower captions follow the spoken words one by one, with the key word in yellow.",
+      "cta": "Question text WHICH ONE DID YOU HEAR ABOUT FIRST? in white with yellow keywords at the top. Below it two flag emojis side by side, each with a yellow number label. Captions at the bottom, ending on a follow prompt."
+    },
+    "rythme": {
+      "changement_s": 4.0,
+      "declencheur": "mots_cles",
+      "zoom_punch": false
+    },
+    "sous_titres": {
+      "style": "word_by_word",
+      "words_on_screen": 2,
+      "position": "lower_third",
+      "use_channel_charter": true
+    },
+    "voix": {
+      "gender": "male",
+      "age": "adult 25-35",
+      "speed": 1.0,
+      "engine_hint": "elevenlabs:TX3LPaxmHKxFdv7VOQHJ"
+    },
+    "audio": {
+      "music_mood": "Very quiet, soft ambient synth pad with a steady light pulse around 90 bpm, almost inaudible under the voice",
+      "music_db": -28.0,
+      "sfx": [
+        "soft pop on each caption word",
+        "whoosh when the fact badge changes",
+        "tick during the number count-up",
+        "light ding on the verdict reveal"
+      ]
+    }
+  },
+  "why_it_works": "The numbered facts give a clear, easy-to-follow rhythm. The big numbers and badge stay in the same place, so the structure is instantly readable. The odd-claim explanation adds a small reward of understanding. The personal verdict and the closing question invite comments and follows with no cuts needed.",
+  "extraite_le": "2026-11-20T08:28:30+00:00",
+  "cout_extraction_usd": 0.0352
+}

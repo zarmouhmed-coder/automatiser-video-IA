@@ -1,0 +1,41 @@
+{
+  "schema_version": 3,
+  "recipe_id": "mystere-non-resolu",
+  "contenu": {
+    "niche": "unsolved_mysteries",
+    "themes": ["disparitions", "phénomènes inexpliqués", "énigmes historiques", "lieux abandonnés"],
+    "sources_acceptees": ["forum", "actualite", "google_trends"],
+    "angle": "un fait réel daté dont aucune explication simple ne tient",
+    "transformation": "garder uniquement les faits établis par les sources, les remettre dans un ordre qui fait monter le doute, présenter les théories sans trancher ; jamais d'accusation contre une personne réelle",
+    "format": "narration",
+    "language": "en",
+    "target_duration_s": [65, 85],
+    "structure": [
+      {"part": "hook", "seconds": [0, 3], "pattern": "fait inexpliqué + date ou lieu précis", "example": "In 1959, nine hikers left their tent in the snow."},
+      {"part": "setup", "seconds": [3, 20]},
+      {"part": "escalation", "seconds": [20, 55], "beats": 3},
+      {"part": "payoff", "seconds": [55, 70], "pattern": "les théories, sans trancher"},
+      {"part": "cta", "seconds": [70, 76], "pattern": "quelle théorie tu crois ?"}
+    ],
+    "script_style": {"pov": "narrator", "wpm": 165, "reading_level": "grade_7", "tone": "calme, inquiétant"},
+    "posting": {"hashtags": ["#mystery", "#unsolved", "#truecrime"], "best_hours_utc": [18, 23, 2]}
+  },
+  "visuel": {
+    "moteur": "html",
+    "ambiance": "dossier d'enquête : papier sombre, grain, lumière de lampe qui vacille, texte machine à écrire, tampons rouges",
+    "fond": "anime",
+    "scene_defaut": "fiche d'indice épinglée qui se pose, texte tapé lettre par lettre",
+    "scenes": {
+      "hook": "date et lieu tapés à la machine, tampon « UNSOLVED » qui s'écrase",
+      "setup": "carte stylisée en traits avec un point qui pulse sur le lieu",
+      "escalation": "indices épinglés un par un et reliés par un fil rouge qui se tend",
+      "payoff": "les théories en colonnes, chacune barrée ou laissée ouverte",
+      "cta": "point d'interrogation qui se dessine au trait"
+    },
+    "rythme": {"changement_s": 5.0, "declencheur": "mots_cles", "zoom_punch": false},
+    "sous_titres": {"style": "word_by_word", "words_on_screen": 3, "position": "center", "use_channel_charter": true},
+    "voix": {"gender": "male", "age": "35-50", "speed": 0.95, "engine_hint": "elevenlabs:nPczCjzI2devNBz1zQrb"},
+    "audio": {"music_mood": "dark ambient", "music_db": -24, "sfx": ["low_hit_on_escalation"]}
+  },
+  "why_it_works": "Fait réel daté qui crée une boucle de curiosité ; trois indices qui contredisent l'explication simple ; fin ouverte qui pousse à commenter."
+}

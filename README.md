@@ -54,7 +54,7 @@ le rapport de validation l'indique clairement (repli espeak-ng ou « aucune voix
 **Traduction anglaise** : gabarits démo traduits à la main ; sinon l'IA configurée ; sinon un modèle de traduction
 local hors ligne (~80 Mo, téléchargé automatiquement). Les textes non traduits sont signalés dans le rapport.
 
-**Inspirations** (page dédiée, ou champ dans Création) : un lien TikTok donne titre/auteur/couleurs de la miniature
+**Inspirations** (page « Recettes & inspirations », ou étape « Style » de l'assistant de création) : un lien TikTok donne titre/auteur/couleurs de la miniature
 (API officielle oEmbed ; TikTok n'autorise pas le téléchargement de la vidéo). Pour copier le **rythme** et le
 **mouvement**, importez la vidéo de référence : le studio mesure plans, coupes/min, mouvement, luminosité, contraste,
 saturation et palette, puis applique durée des plans, énergie caméra, étalonnage et couleur d'accent. Aucun
@@ -69,6 +69,25 @@ contenu de la référence n'est copié.
   **puis** le validiez. Contrôle fait à la création ET avant chaque étape narrative. Les autres séries continuent.
   Le vote n'est pas imposé : par épisode, choisissez « si dilemme », « obligatoire » ou « non ».
 - **Rien ne devient canon sans vous** : propositions de faits, nouveaux personnages, dons d'Observateurs.
+
+## Fusion avec TrendForge (projet de @wesh622)
+
+Repris de [TrendForge](https://github.com/wesh622/trendforge) et intégré au studio :
+
+- **Recettes** : les 6 recettes de TrendForge sont disponibles en préréglages (« Mystère non résolu », « Top 5 »…).
+  Coller un lien TikTok lance l'extraction d'une recette : téléchargement public par yt-dlp quand la plateforme
+  l'autorise (sinon : bouton « Enregistrer la vidéo » de TikTok puis import du fichier), mesure du montage,
+  transcription de l'accroche (faster-whisper, local), puis synthèse de la recette (IA si configurée, sinon
+  mesures locales). La recette pilote le rythme, les zooms « punch », les sous-titres, la musique, le débit
+  des voix et les consignes données aux scénaristes. **On copie la recette, jamais la vidéo.**
+- **Sous-titres mot par mot façon TikTok** (mot prononcé en couleur + « pop »), réglables dans Paramètres.
+- **Son normalisé à -14 LUFS** (niveau attendu par TikTok).
+- **Note de l'accroche** (3 premières secondes) dans l'avis du directeur.
+- **Contrôle d'originalité** : empreintes perceptuelles du rendu comparées à la vidéo de référence.
+- **Idées du moment** : actualité Google filtrée (rien de sensible), transformée en fiction pour la série.
+
+TrendForge n'a pas de fichier de licence : son auteur garde ses droits. Vérifiez son accord avant de diffuser
+ce dépôt publiquement.
 
 ## Les 10 pages
 

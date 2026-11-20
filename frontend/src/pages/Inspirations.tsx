@@ -22,15 +22,19 @@ export function InspirationCard({ i, onDelete }: { i: any; onDelete?: () => void
             <span className="small"><b>{i.title || i.url || "Référence"}</b> {i.author && <span className="muted">· @{i.author}</span>}</span>
             <span className="row">
               {i.series_id ? <SeriesPill id={i.series_id} /> : <span className="pill gray">toutes séries</span>}
-              <span className={`pill ${i.status === "ready" ? "green" : i.status === "partial" ? "amber" : "red"}`}>
-                {{ ready: "analyse complète", partial: "couleurs seulement", error: "erreur" }[i.status as string] || i.status}
-              </span>
+              {i.status === "analyzing" ? <span className="pill"><span className="spinner" /> analyse en cours</span> :
+                <span className={`pill ${i.status === "ready" ? "green" : i.status === "partial" ? "amber" : "red"}`}>
+                  {{ ready: i.kind === "recette" ? "recette prête" : "recette extraite", partial: "couleurs seulement", error: "à compléter" }[i.status as string] || i.status}
+                </span>}
             </span>
           </div>
           {i.url && <a className="tiny" href={i.url} target="_blank" rel="noreferrer">{i.url}</a>}
           {p.embed_url && <a className="tiny" style={{ marginLeft: 8 }} href={p.embed_url} target="_blank" rel="noreferrer">▶ voir sur TikTok</a>}
           <Palette colors={p.palette} />
           <div className="tiny" style={{ marginTop: 4 }}>{p.description}</div>
+          {p.transcript?.hook_text && <div className="tiny muted">Accroche entendue : « {p.transcript.hook_text} » · {p.transcript.wpm} mots/min</div>}
+          {p.why_it_works && <div className="tiny muted">Pourquoi ça marche : {p.why_it_works}</div>}
+          {p.recipe_source && <div className="tiny muted">Recette : {p.recipe_source}</div>}
           {p.note && <div className="tiny muted">{p.note}</div>}
           {i.error && <div className="lock tiny">{i.error}</div>}
           <div className="row tiny muted" style={{ marginTop: 4 }}>
@@ -44,25 +48,26 @@ export function InspirationCard({ i, onDelete }: { i: any; onDelete?: () => void
 }
 
 export default function Inspirations() {
-  const { data, reload } = usePoll<any[]>("/api/inspirations", 0);
+  const { data, reload } = usePoll<any[]>("/api/inspirations", 3000);
+  const [tab, setTab] = useState("mine");
   const [url, setUrl] = useState("");
   const [series, setSeries] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const { run, busy } = useAction();
   return (
     <div className="stack">
-      <PageHead title="Inspirations" sub="Donnez une référence (TikTok, vidéo, capture) : le studio en reprend le rythme, l'énergie et les couleurs — jamais le contenu." />
+      <PageHead title="Recettes & inspirations" sub="Collez un TikTok qui marche : le studio en extrait la recette (accroche, rythme, sous-titres, son, couleurs) — jamais le contenu." />
       <div className="grid g2">
         <div className="panel">
-          <h2>Lien TikTok</h2>
+          <h2>① Lien TikTok</h2>
           <div className="field"><input placeholder="https://www.tiktok.com/@compte/video/…" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
           <div className="field"><label>Série</label>
             <select value={series} onChange={(e) => setSeries(e.target.value)}><option value="">Toutes</option><option value="horror">Horreur</option><option value="football">Football</option><option value="isekai">Isekai</option></select></div>
           <button className="primary" disabled={busy || !url.trim()} onClick={() => run(() => api.post("/api/inspirations/link", { url, series_id: series || null }), "Lien analysé").then(() => { setUrl(""); reload(); })}>Analyser le lien</button>
-          <p className="tiny muted" style={{ marginTop: 8 }}>Le lien donne le titre, l'auteur et les couleurs de la miniature (API officielle de TikTok). TikTok n'autorise pas le téléchargement de ses vidéos : pour copier le <b>rythme de montage</b> et le <b>mouvement</b>, importez aussi la vidéo ci-contre.</p>
+          <p className="tiny muted" style={{ marginTop: 8 }}>Le studio tente de récupérer la vidéo publique (yt-dlp), puis mesure le montage, transcrit l'accroche et écrit la recette. Si TikTok refuse le téléchargement, utilisez son bouton « Enregistrer la vidéo » et importez le fichier ci-contre.</p>
         </div>
         <div className="panel">
-          <h2>Vidéo ou capture d'écran</h2>
+          <h2>② Ou importez la vidéo</h2>
           <div className="field"><input type="file" accept="video/*,image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
           <button className="primary" disabled={busy || !file} onClick={() => {
             const fd = new FormData();
@@ -75,9 +80,15 @@ export default function Inspirations() {
         </div>
       </div>
       <div className="panel">
-        <h2>Références enregistrées</h2>
-        {data && !data.length && <Empty>Aucune inspiration. Ajoutez un lien ou une vidéo.</Empty>}
-        {data?.map((i) => <InspirationCard key={i.id} i={i} onDelete={() => run(() => api.del(`/api/inspirations/${i.id}`), "Supprimée").then(reload)} />)}
+        <div className="tabs">
+          <button className={tab === "mine" ? "on" : ""} onClick={() => setTab("mine")}>Mes recettes extraites</button>
+          <button className={tab === "presets" ? "on" : ""} onClick={() => setTab("presets")}>Recettes prêtes (TrendForge)</button>
+        </div>
+        {(() => {
+          const list = (data || []).filter((i) => (tab === "presets") === (i.kind === "recette"));
+          if (data && !list.length) return <Empty>Aucune recette ici pour l'instant. Collez un lien TikTok ci-dessus.</Empty>;
+          return list.map((i) => <InspirationCard key={i.id} i={i} onDelete={i.kind === "recette" ? undefined : () => run(() => api.del(`/api/inspirations/${i.id}`), "Supprimée").then(reload)} />);
+        })()}
       </div>
     </div>
   );
