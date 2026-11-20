@@ -1,0 +1,275 @@
+"""Bibles initiales des trois séries (créées une seule fois, jamais écrasées)."""
+from __future__ import annotations
+
+from . import db
+
+SERIES = [
+    {
+        "id": "horror",
+        "code": "A",
+        "name": "LES HEURES CREUSES",
+        "genre": "Horreur — enquête paranormale",
+        "accent": "#ff4d6d",
+        "features": {"observers": False},
+        "bible": {
+            "pitch": "Une podcasteuse et son ingénieur son enquêtent sur le sanatorium de Vaulx-sur-Brume, "
+                     "fermé en 1987, où une présence imite la voix des absents.",
+            "tone": "Effroi lent, réaliste, intime. La peur naît du doute, du son et de ce qu'on ne voit pas. "
+                    "Les jumpscares sont rares (au plus un par épisode) et toujours justifiés.",
+            "rules": [
+                "Le Locataire imite uniquement la voix de personnes absentes de la pièce.",
+                "Il n'apparaît jamais sur un enregistrement en direct, seulement à la réécoute.",
+                "Chaque nuit, il se rapproche d'une pièce vers ceux qui l'ont entendu.",
+                "Une seule révélation majeure par épisode.",
+                "Les personnages réagissent de façon crédible : ils doutent, vérifient, ont peur.",
+            ],
+            "art_direction": {
+                "palette": ["#07090d", "#1b2430", "#3d4f5c", "#c9d6df", "#ff4d6d"],
+                "lighting": "Lampes torches, néons défaillants, lune voilée. Grain de pellicule, vignettage.",
+                "camera": "Plans lents, travellings avant, cadrages qui laissent de l'espace vide inquiétant.",
+            },
+            "sound_direction": "Drones graves, respirations, grincements, silences intentionnels avant les révélations.",
+            "vote_policy": "Vote uniquement sur une décision morale ou risquée (entrer, fuir, croire quelqu'un).",
+        },
+        "characters": [
+            {"id": "hor.lea", "name": "Léa Moreau", "role": "Enquêtrice, podcasteuse",
+             "description": "31 ans, animatrice du podcast « Fréquences Mortes ». Obstinée, empathique.",
+             "personality": "Rationnelle en surface, hantée par la disparition de sa sœur Clara.",
+             "appearance": {"archetype": "human", "skin": "#e8c4a8", "hair": "#2a1d17", "hair_style": "bob",
+                            "eyes": "#5b7f6a", "outfit": "#3a4652", "outfit2": "#1c232b", "outfit_style": "coat",
+                            "accessory": "scarf"},
+             "voice": {"pitch": 1.08}},
+            {"id": "hor.samir", "name": "Samir Haddad", "role": "Ingénieur son, sceptique",
+             "description": "34 ans, preneur de son. Cherche toujours l'explication technique.",
+             "personality": "Ironique, protecteur, refuse de croire jusqu'à l'épisode où il ne peut plus.",
+             "appearance": {"archetype": "human", "skin": "#b98463", "hair": "#121010", "hair_style": "short",
+                            "eyes": "#3b2a20", "outfit": "#4b3b2f", "outfit2": "#2a221c", "outfit_style": "hoodie",
+                            "accessory": "headphones"},
+             "voice": {"pitch": 0.9}},
+            {"id": "hor.odile", "name": "Odile Varenne", "role": "Archiviste municipale",
+             "description": "68 ans, garde les archives du sanatorium. Sait plus qu'elle ne le dit.",
+             "personality": "Douce, précise, ambiguë.",
+             "appearance": {"archetype": "human", "skin": "#efd2bd", "hair": "#c9c4bf", "hair_style": "long",
+                            "eyes": "#6d7f92", "outfit": "#4f3a4a", "outfit2": "#2f2330", "outfit_style": "robe",
+                            "accessory": "glasses"},
+             "voice": {"pitch": 1.0}},
+            {"id": "hor.locataire", "name": "Le Locataire", "role": "Entité",
+             "description": "Silhouette trop haute, visible seulement dans les reflets et à la réécoute.",
+             "personality": "Patient. Curieux. Imite.",
+             "appearance": {"archetype": "entity", "skin": "#0b0d10", "eyes": "#e8f1ff", "glow": "#9fd3ff",
+                            "outfit": "#050608", "height": 1.25},
+             "voice": {"pitch": 0.7}},
+        ],
+        "relations": [("hor.lea", "hor.samir", "partenaires d'enquête"),
+                      ("hor.lea", "hor.odile", "méfiance mutuelle")],
+        "entries": [
+            ("lieu", "sanatorium", "Sanatorium de Vaulx-sur-Brume", {"desc": "Trois étages, aile B murée."}),
+            ("lieu", "couloir_b", "Couloir de l'aile B", {"desc": "Portes numérotées, néon qui grésille."}),
+            ("entite", "locataire", "Le Locataire", {"regles": "voir règles du monde"}),
+        ],
+        "facts": ["Clara Moreau a disparu en 2019 après avoir visité le sanatorium.",
+                  "Le sanatorium a fermé en 1987 après l'incendie de l'aile B."],
+    },
+    {
+        "id": "football",
+        "code": "B",
+        "name": "LIGUE ÉCLIPSE",
+        "genre": "Football fantasy — anime sportif",
+        "accent": "#3ddc84",
+        "features": {"observers": False, "bible_import": True},
+        "bible": {
+            "pitch": "Le FC Aube, club relégable, découvre que les techniques d'Élan peuvent renverser des "
+                     "matchs, à condition de respecter le football et d'en payer le prix.",
+            "tone": "Spectaculaire mais tactique. Chaque but se construit. L'équipe gagne ensemble.",
+            "rules": [
+                "Règles FIFA respectées : hors-jeu, fautes, cartons, 5 remplacements, 90 minutes.",
+                "Jauge d'Élan (0-100) par joueur : chaque technique a un coût et des conditions.",
+                "Chaque technique a au moins un contre connu et une progression (niveaux I à III) par l'entraînement.",
+                "Pas de victoire automatique : une technique ratée a des conséquences (contre-attaque, blessure, fatigue).",
+                "Chaque joueur secondaire a une fonction tactique claire.",
+            ],
+            "art_direction": {
+                "palette": ["#0a1410", "#123524", "#3ddc84", "#f5f7f2", "#ffb000"],
+                "lighting": "Projecteurs de stade, contre-jours, traînées de vitesse lors des techniques.",
+                "camera": "Plans larges tactiques puis gros plans expressifs ; ralentis sur les techniques.",
+            },
+            "sound_direction": "Foule vivante, sifflet, impacts de balle, percussions sur les actions.",
+            "vote_policy": "Vote sur un choix tactique ou de composition, jamais sur le score directement.",
+        },
+        "characters": [
+            {"id": "fb.noa", "name": "Noa Diallo", "role": "Milieu créateur (n°8)",
+             "description": "19 ans, voit les lignes de passe avant les autres.",
+             "personality": "Calme, perfectionniste, doute de son physique.",
+             "appearance": {"archetype": "human", "skin": "#6b4430", "hair": "#0f0b0a", "hair_style": "messy",
+                            "eyes": "#3a2418", "outfit": "#f5a623", "outfit2": "#1b1b1b", "outfit_style": "jersey",
+                            "number": 8}, "stats": {"poste": "MC", "elan_max": 100,
+                                                    "techniques": ["tech.ligne_horizon"]},
+             "voice": {"pitch": 1.0}},
+            {"id": "fb.yuna", "name": "Yuna Sato", "role": "Ailière droite (n°11)",
+             "description": "18 ans, la plus rapide du club, impulsive.",
+             "personality": "Énergique, compétitive, loyale.",
+             "appearance": {"archetype": "human", "skin": "#f1d3b8", "hair": "#d64a3a", "hair_style": "ponytail",
+                            "eyes": "#5a3b2a", "outfit": "#f5a623", "outfit2": "#1b1b1b", "outfit_style": "jersey",
+                            "number": 11, "accessory": "headband"},
+             "stats": {"poste": "AD", "techniques": ["tech.pas_fantome"]}, "voice": {"pitch": 1.15}},
+            {"id": "fb.marco", "name": "Marco Vitale", "role": "Capitaine, défenseur central (n°4)",
+             "description": "27 ans, vétéran du club, lit le jeu adverse.",
+             "personality": "Exigeant, protecteur, porte la pression du maintien.",
+             "appearance": {"archetype": "human", "skin": "#d9a882", "hair": "#3b2a1d", "hair_style": "short",
+                            "eyes": "#4a3322", "outfit": "#f5a623", "outfit2": "#1b1b1b", "outfit_style": "jersey",
+                            "number": 4}, "stats": {"poste": "DC", "techniques": ["tech.mur_de_fer"]},
+             "voice": {"pitch": 0.88}},
+            {"id": "fb.brandt", "name": "Elias Brandt", "role": "Entraîneur",
+             "description": "52 ans, tacticien obsédé par le pressing.",
+             "personality": "Froid en apparence, profondément attaché aux joueurs.",
+             "appearance": {"archetype": "human", "skin": "#e6c3a5", "hair": "#8d8a86", "hair_style": "short",
+                            "eyes": "#5d6b78", "outfit": "#22303c", "outfit2": "#11181f", "outfit_style": "coat",
+                            "accessory": "glasses"}, "voice": {"pitch": 0.85}},
+            {"id": "fb.kaito", "name": "Kaito Ren", "role": "Rival — attaquant des Corbeaux de Ferrand (n°9)",
+             "description": "20 ans, maîtrise l'Éclipse Totale.",
+             "personality": "Arrogant, brillant, respecte ceux qui lui résistent.",
+             "appearance": {"archetype": "human", "skin": "#efd6c0", "hair": "#e9e9f2", "hair_style": "spiky",
+                            "eyes": "#7a3cff", "outfit": "#1c1530", "outfit2": "#7a3cff", "outfit_style": "jersey",
+                            "number": 9}, "stats": {"poste": "BU", "techniques": ["tech.eclipse_totale"]},
+             "voice": {"pitch": 0.95}},
+        ],
+        "relations": [("fb.noa", "fb.yuna", "duo de combinaison"), ("fb.marco", "fb.brandt", "confiance"),
+                      ("fb.noa", "fb.kaito", "rivalité")],
+        "entries": [
+            ("technique", "tech.ligne_horizon", "Ligne d'Horizon",
+             {"porteur": "fb.noa", "cout_elan": 30, "conditions": "2 secondes sans pression directe",
+              "effet": "passe en profondeur parfaitement dosée", "contres": ["pressing à deux", "marquage de l'appel"],
+              "niveau": "I", "progression": "II : utilisable sous pression légère"}),
+            ("technique", "tech.pas_fantome", "Pas Fantôme",
+             {"porteur": "fb.yuna", "cout_elan": 40, "conditions": "espace en ligne droite de 15 m",
+              "effet": "dribble en accélération qui efface un défenseur",
+              "contres": ["défense en zone serrée", "tacle d'anticipation"], "limite": "crampes après 2 usages par match",
+              "niveau": "I"}),
+            ("technique", "tech.mur_de_fer", "Mur de Fer",
+             {"porteur": "fb.marco", "cout_elan": 35, "conditions": "ligne défensive alignée",
+              "effet": "piège du hors-jeu synchronisé", "contres": ["appel en retard", "frappe de loin"],
+              "niveau": "II"}),
+            ("technique", "tech.eclipse_totale", "Éclipse Totale",
+             {"porteur": "fb.kaito", "cout_elan": 60, "conditions": "dos au but, contact avec un défenseur",
+              "effet": "pivot-frappe quasi imparable", "contres": ["ne jamais toucher Kaito dos au but"],
+              "niveau": "III"}),
+            ("club", "fc_aube", "FC Aube", {"classement": "18e/20", "stade": "Stade des Remparts"}),
+            ("club", "corbeaux", "Corbeaux de Ferrand", {"classement": "2e/20"}),
+        ],
+        "facts": ["Le FC Aube a 6 points de retard sur le maintien à 8 journées de la fin.",
+                  "La Jauge d'Élan se recharge par les courses sans ballon et les duels gagnés."],
+    },
+    {
+        "id": "isekai",
+        "code": "C",
+        "name": "L'ARCHIVE D'ALDHRA",
+        "genre": "Isekai fantasy",
+        "accent": "#b48cff",
+        "features": {"observers": True},
+        "bible": {
+            "pitch": "Elio, étudiant en cartographie, se réveille à Aldhra avec la classe unique Cartographe "
+                     "d'Arcanes et un Système qui ment parfois par omission.",
+            "tone": "Aventure, émerveillement et conséquences. Les victoires coûtent, les choix restent.",
+            "rules": [
+                "Niveaux 1 à 100. Évolutions de classe ramifiées aux niveaux 10, 25 et 50 (choix irréversible).",
+                "Magie : Feu, Eau, Terre, Air, Lumière et Arcanes ; chaque sort consomme du mana et a un temps de recharge.",
+                "Le Système donne au plus un indice par jour, ne révèle jamais l'avenir et peut omettre des informations.",
+                "La mort est définitive. Les blessures graves laissent des séquelles.",
+                "Observateurs : au plus un don accepté par épisode, jamais d'omniscience, d'immortalité ni de résurrection, "
+                "jamais plus d'un palier de puissance ; chaque don crée une Dette d'Observation.",
+            ],
+            "art_direction": {
+                "palette": ["#0d0b1a", "#26204a", "#b48cff", "#ffd27a", "#7fe0ff"],
+                "lighting": "Lumières magiques, ciels immenses, particules flottantes, fenêtres du Système bleutées.",
+                "camera": "Grands paysages en parallaxe, gros plans d'émotion, effets de sorts lisibles.",
+            },
+            "sound_direction": "Nappes orchestrales, cloches cristallines pour le Système, impacts magiques.",
+            "vote_policy": "Vote sur un chemin, une évolution de classe ou une alliance.",
+        },
+        "characters": [
+            {"id": "isk.elio", "name": "Elio Navarre", "role": "Protagoniste — Cartographe d'Arcanes (niv. 7)",
+             "description": "22 ans, réincarné. Voit les lignes de mana comme des cartes.",
+             "personality": "Curieux, prudent, humour défensif.",
+             "appearance": {"archetype": "human", "skin": "#e9c9ad", "hair": "#2f3d66", "hair_style": "messy",
+                            "eyes": "#7fe0ff", "outfit": "#3a335e", "outfit2": "#ffd27a", "outfit_style": "robe"},
+             "stats": {"niveau": 7, "classe": "Cartographe d'Arcanes", "race": "Humain",
+                       "competences": ["Lecture de flux", "Carte vivante (niv. 1)"]}, "voice": {"pitch": 1.02}},
+            {"id": "isk.sylwen", "name": "Sylwen", "role": "Archère sylvaine (niv. 18)",
+             "description": "Elfe exilée, 140 ans, méfiante envers les réincarnés.",
+             "personality": "Froide, loyale une fois la confiance gagnée.",
+             "appearance": {"archetype": "human", "skin": "#f3e3d3", "hair": "#e9f0d0", "hair_style": "long",
+                            "eyes": "#5fbf7a", "outfit": "#2f5a3f", "outfit2": "#a07b4a", "outfit_style": "armor",
+                            "ears": "elf"},
+             "stats": {"niveau": 18, "classe": "Archère des Brumes", "race": "Sylvaine"}, "voice": {"pitch": 1.12}},
+            {"id": "isk.grukk", "name": "Grukk", "role": "Forgeron orc des Cendres (niv. 22)",
+             "description": "Orc pacifiste, forge des armes vivantes.",
+             "personality": "Patient, philosophe, terrifiant en colère.",
+             "appearance": {"archetype": "human", "skin": "#6f8f5a", "hair": "#1a1a1a", "hair_style": "bald",
+                            "eyes": "#d9a441", "outfit": "#5a3e2b", "outfit2": "#2b2b2b", "outfit_style": "armor",
+                            "tusks": True, "height": 1.12},
+             "stats": {"niveau": 22, "classe": "Forgeron runique", "race": "Orc des Cendres"}, "voice": {"pitch": 0.78}},
+            {"id": "isk.mira", "name": "Mira", "role": "Voleuse félide (niv. 12)",
+             "description": "Beastkin féline, dette envers une guilde de voleurs.",
+             "personality": "Espiègle, opportuniste, cœur en or caché.",
+             "appearance": {"archetype": "human", "skin": "#f0cfae", "hair": "#2b2b2b", "hair_style": "bob",
+                            "eyes": "#ffd27a", "outfit": "#3b2b4f", "outfit2": "#b48cff", "outfit_style": "hoodie",
+                            "ears": "cat"},
+             "stats": {"niveau": 12, "classe": "Lame d'ombre", "race": "Félide"}, "voice": {"pitch": 1.2}},
+            {"id": "isk.heraut", "name": "Le Héraut Gris", "role": "Antagoniste",
+             "description": "Émissaire masqué qui efface les cartes du monde.",
+             "personality": "Calme, poli, implacable.",
+             "appearance": {"archetype": "human", "skin": "#9a9aa6", "hair": "#4a4a55", "hair_style": "hood",
+                            "eyes": "#ff5577", "outfit": "#3c3c48", "outfit2": "#1d1d24", "outfit_style": "robe",
+                            "horns": True}, "voice": {"pitch": 0.8}},
+        ],
+        "relations": [("isk.elio", "isk.sylwen", "alliance fragile"), ("isk.elio", "isk.grukk", "amitié"),
+                      ("isk.mira", "isk.elio", "dette de vie")],
+        "entries": [
+            ("race", "humain", "Humains", {"traits": "polyvalents, croissance rapide"}),
+            ("race", "sylvaine", "Sylvains (elfes)", {"traits": "longévité, affinité Air/Lumière"}),
+            ("race", "orc_cendres", "Orcs des Cendres", {"traits": "force, résistance au feu, culture de la forge"}),
+            ("race", "felide", "Félides", {"traits": "agilité, vision nocturne"}),
+            ("race", "monstre", "Monstres", {"traits": "nés des fractures de mana ; certains sont intelligents"}),
+            ("classe", "cartographe_arcanes", "Cartographe d'Arcanes",
+             {"evolutions": {"10": ["Arpenteur des Lignes", "Tisseur de Cartes"],
+                             "25": ["Géomancien", "Archiviste du Vide"]}}),
+            ("magie", "arcanes", "Arcanes", {"cout": "mana élevé", "risque": "fracture de mana si surcharge"}),
+            ("arme", "lame_vivante", "Lame vivante (Grukk)", {"effet": "apprend du porteur", "limite": "s'use en 30 combats"}),
+            ("systeme", "systeme", "Le Système", {"limites": "1 indice/jour, jamais l'avenir, peut omettre"}),
+        ],
+        "facts": ["Elio est arrivé à Aldhra il y a 34 jours.",
+                  "Les cartes effacées par le Héraut Gris font disparaître les lieux de la mémoire des habitants."],
+    },
+]
+
+
+def seed() -> bool:
+    """Crée les séries si la base est vide. Retourne True si un seed a eu lieu."""
+    if db.row("SELECT id FROM series LIMIT 1"):
+        return False
+    ts = db.now()
+    with db.transaction() as c:
+        for s in SERIES:
+            c.execute(
+                "INSERT INTO series(id, code, name, genre, accent, bible, features, created_at) VALUES(?,?,?,?,?,?,?,?)",
+                (s["id"], s["code"], s["name"], s["genre"], s["accent"], db.jdumps(s["bible"]),
+                 db.jdumps(s["features"]), ts),
+            )
+            for ch in s["characters"]:
+                c.execute(
+                    "INSERT INTO characters(id, series_id, name, role, description, personality, appearance, stats,"
+                    " voice, status, version, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (ch["id"], s["id"], ch["name"], ch["role"], ch["description"], ch["personality"],
+                     db.jdumps(ch["appearance"]), db.jdumps(ch.get("stats", {})), db.jdumps(ch.get("voice", {})),
+                     "canon", 1, ts, ts),
+                )
+            for a, b, kind in s["relations"]:
+                c.execute("INSERT INTO relations(series_id, a_id, b_id, kind, created_at) VALUES(?,?,?,?,?)",
+                          (s["id"], a, b, kind, ts))
+            for kind, key, name, data in s["entries"]:
+                c.execute("INSERT INTO bible_entries(series_id, kind, key, name, data, source, created_at)"
+                          " VALUES(?,?,?,?,?,?,?)", (s["id"], kind, key, name, db.jdumps(data), "seed", ts))
+            for f in s["facts"]:
+                c.execute("INSERT INTO canon_facts(series_id, text, category, status, source, created_at, decided_at)"
+                          " VALUES(?,?,?,?,?,?,?)", (s["id"], f, "fait", "canon", "seed", ts, ts))
+    return True
